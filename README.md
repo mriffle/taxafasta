@@ -15,6 +15,10 @@ The tool parses NCBI taxonomy dump files (`nodes.dmp`, `merged.dmp`) to build a 
 
 The FASTA file is streamed line-by-line and never loaded into memory. Each entry's `OX=` field is extracted and checked against the pre-computed set. Matching entries are written to the (gzip-compressed by default) output. A log file is generated for every run recording parameters, taxonomy version, warnings, and summary statistics.
 
+## Requirements
+
+- **Python 3.10 or newer**
+
 ## Installation
 
 ### pip
@@ -25,6 +29,13 @@ pip install taxafasta
 # With recommended performance dependencies:
 pip install taxafasta[all]
 ```
+
+> **Troubleshooting:** If you see an error like:
+> ```
+> ERROR: Could not find a version that satisfies the requirement taxafasta (from versions: none)
+> ERROR: No matching distribution found for taxafasta
+> ```
+> Your Python version is likely too old. Verify with `python --version` — taxafasta requires Python 3.10+.
 
 ### Docker
 
