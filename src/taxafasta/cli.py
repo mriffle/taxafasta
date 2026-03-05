@@ -34,7 +34,10 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         action="append",
         type=int,
-        help="NCBI taxonomy ID to include (all descendants included). Repeat for multiple IDs.",
+        help=(
+            "NCBI taxonomy ID to include (all descendants included)."
+            " Repeat for multiple IDs."
+        ),
     )
     parser.add_argument(
         "--output",
@@ -68,7 +71,10 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         type=int,
         default=None,
-        help="Taxonomy ID to exclude (with descendants), applied after inclusion. Repeat for multiple IDs.",
+        help=(
+            "Taxonomy ID to exclude (with descendants),"
+            " applied after inclusion. Repeat for multiple IDs."
+        ),
     )
     parser.add_argument(
         "--no-merge",

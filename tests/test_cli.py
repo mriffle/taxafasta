@@ -46,7 +46,9 @@ def test_parser_basic() -> None:
 
 def test_parser_multiple_taxids() -> None:
     parser = build_parser()
-    args = parser.parse_args(["-i", "in.fasta", "-t", "2", "-t", "10239", "-o", "out.fasta"])
+    args = parser.parse_args(
+        ["-i", "in.fasta", "-t", "2", "-t", "10239", "-o", "out.fasta"],
+    )
     assert args.taxid == [2, 10239]
 
 

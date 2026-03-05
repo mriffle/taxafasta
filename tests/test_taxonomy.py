@@ -146,8 +146,9 @@ def test_exclude_subtree(tiny_taxdump_dir: Path) -> None:
 
 
 def test_exclude_multiple_subtrees(tiny_taxdump_dir: Path) -> None:
-    # Include bacteria (2), exclude two sub-branches: 335928 (family containing 6,7)
-    # and 1706371 (family containing 10,11). Only 32199 branch (containing 9) should remain.
+    # Include bacteria (2), exclude two sub-branches:
+    # 335928 (family containing 6,7) and 1706371 (family
+    # containing 10,11). Only 32199 branch (9) remains.
     allowed, _, _, _ = build_allowed_set(
         tiny_taxdump_dir,
         [2],
