@@ -17,7 +17,7 @@ The FASTA file is streamed line-by-line and never loaded into memory. Each entry
 
 ## Requirements
 
-- **Python 3.10 or newer**
+- **Python 3.10 or newer** (Or Docker)
 
 ## Installation
 
