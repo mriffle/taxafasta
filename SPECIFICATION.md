@@ -422,7 +422,7 @@ classifiers = [
     "Environment :: Console",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache License",
     "Programming Language :: Python :: 3",
 ]
 

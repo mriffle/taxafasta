@@ -3,7 +3,7 @@
 Filter UniProt protein FASTA files by NCBI taxonomy.
 
 [![CI](https://github.com/mriffle/taxafasta/actions/workflows/ci.yml/badge.svg)](https://github.com/mriffle/taxafasta/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 ## Overview
 
@@ -137,4 +137,4 @@ mypy src/
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+Apache 2.0 — see [LICENSE](LICENSE) for details.
