@@ -95,15 +95,16 @@ taxafasta -i uniprot_trembl.fasta.gz -t 2 -o bacteria.fasta -v
 ## Docker Usage
 
 ```bash
-docker run --rm -v /data:/data ghcr.io/mriffle/taxafasta:latest \
-  -i /data/uniprot_trembl.fasta.gz -t 2 -o /data/bacteria.fasta
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" ghcr.io/mriffle/taxafasta:latest \
+  -i uniprot_trembl.fasta.gz -t 2 -o bacteria.fasta
 
 # With pre-downloaded taxonomy
 docker run --rm \
-  -v /data:/data \
-  -v /taxonomy:/taxonomy:ro \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:$PWD" \
+  -w "$PWD" \
   ghcr.io/mriffle/taxafasta:latest \
-  -i /data/uniprot_trembl.fasta.gz -t 2 --taxdump /taxonomy -o /data/bacteria.fasta
+  -i uniprot_trembl.fasta.gz -t 2 --taxdump taxonomy -o bacteria.fasta
 ```
 
 ## Common Taxonomy IDs
