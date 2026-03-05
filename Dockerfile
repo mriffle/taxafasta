@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for taxafasta (§13.3)
+# Multi-stage Dockerfile for taxafasta (§14.3)
 
 ARG PYTHON_VERSION=3.12
 
@@ -18,7 +18,7 @@ FROM python:${PYTHON_VERSION}-slim AS test
 WORKDIR /app
 COPY --from=build /app/dist/*.whl /app/dist/
 
-RUN pip install --no-cache-dir /app/dist/*.whl[all] && \
+RUN pip install --no-cache-dir "$(ls /app/dist/*.whl)[all]" && \
     pip install --no-cache-dir pytest pytest-cov pytest-benchmark mypy ruff
 
 COPY tests/ tests/
@@ -37,7 +37,7 @@ LABEL org.opencontainers.image.description="Filter UniProt FASTA files by NCBI t
 
 COPY --from=build /app/dist/*.whl /tmp/
 
-RUN pip install --no-cache-dir /tmp/*.whl[all] && \
+RUN pip install --no-cache-dir "$(ls /tmp/*.whl)[all]" && \
     rm -rf /tmp/*.whl
 
 ENTRYPOINT ["taxafasta"]

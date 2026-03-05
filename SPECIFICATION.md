@@ -539,7 +539,15 @@ The project includes two GitHub Actions workflow files in `.github/workflows/`.
    - Upload the coverage report as an artifact (and optionally to a coverage service).
    - Fail the build if coverage drops below a configured threshold (e.g., 90%).
 
-All three jobs run in parallel. The full workflow should complete in under 5 minutes for the unit/integration test suite.
+4. **`docker`**: Builds the Docker image and runs smoke tests to verify the image works. Steps:
+   - Check out the repository.
+   - Set up Docker Buildx.
+   - Build the runtime image: `docker build --target runtime -t taxafasta-test:latest .`
+   - Run `--version` to verify the entrypoint works.
+   - Run `--help` to verify argument parsing.
+   - Create a temporary FASTA and taxonomy fixture, mount it as a volume, run a real filter, and verify the output contains the expected entries and that a log file was produced.
+
+All four jobs run in parallel. The full workflow should complete in under 5 minutes for the unit/integration test suite.
 
 ### 15.2 `release.yml` — Release & Publish (runs on GitHub Release creation)
 
@@ -592,11 +600,19 @@ All three jobs run in parallel. The full workflow should complete in under 5 min
     └── release.yml   # Test + publish to PyPI + publish Docker image on release
 ```
 
-### 15.4 CI Tests for CI Configuration (`test_ci.py`, optional)
+### 15.4 Docker Smoke Tests (`test_docker.py`)
 
-While not strictly unit tests, the project may include a smoke test that verifies:
-- The `Dockerfile` builds successfully (can be run locally via `docker build --target test .`).
-- The built image's entrypoint works (`docker run --rm <image> --version` prints the version).
+The project includes a pytest test file that builds the Docker image and verifies end-to-end functionality. These tests are automatically skipped when Docker is not available (e.g., on systems without Docker installed). The tests cover:
+
+- **Image build**: Build the runtime stage of the multi-stage Dockerfile and assert it succeeds.
+- **Version check**: Run `docker run --rm <image> --version` and verify the output contains the version string.
+- **Help check**: Run `docker run --rm <image> --help` and verify expected arguments (`--input`, `--taxid`) appear in the output.
+- **End-to-end filter**: Create a temporary FASTA file and taxonomy fixtures on the host, mount them into the container via `-v`, run a real filter, and verify:
+  - The output FASTA contains expected matching entries.
+  - The output FASTA does not contain entries that should have been filtered out.
+  - A `.log` file is produced alongside the output.
+
+These same tests are also run in the CI `docker` job (§15.1) as shell commands for environments where pytest is not needed.
 
 ---
 
@@ -805,6 +821,7 @@ taxafasta/
     ├── test_run_log.py           # Unit tests for log file generation and warning dedup
     ├── test_cli.py               # Integration tests for CLI argument handling
     ├── test_integration.py       # End-to-end tests with real-format fixture files
+    ├── test_docker.py            # Docker image build and smoke tests (skipped if no Docker)
     └── data/                     # Small fixture files for testing
         ├── tiny_nodes.dmp        # Unit test taxonomy fixture (tiny_ prefix)
         ├── tiny_merged.dmp

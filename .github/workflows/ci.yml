@@ -1,4 +1,4 @@
-# Continuous Integration — lint + typecheck + test on push/PR (§14.1)
+# Continuous Integration — lint + typecheck + test + docker on push/PR (§15.1)
 name: CI
 
 on:
@@ -44,3 +44,28 @@ jobs:
         with:
           name: coverage-${{ matrix.python-version }}
           path: coverage.xml
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build Docker image (all stages)
+        run: docker build --target runtime -t taxafasta-test:latest .
+      - name: Smoke test — version
+        run: docker run --rm taxafasta-test:latest --version
+      - name: Smoke test — help
+        run: docker run --rm taxafasta-test:latest --help
+      - name: Smoke test — filter
+        run: |
+          WORKDIR=$(mktemp -d)
+          printf '>sp|P1|X OS=Org OX=7 PE=1 SV=1\nACGT\n>sp|P2|Y OS=Org OX=9606 PE=1 SV=1\nTTTT\n' > "$WORKDIR/input.fasta"
+          mkdir "$WORKDIR/taxdump"
+          printf '1\t|\t1\t|\tno rank\t|\n131567\t|\t1\t|\tno rank\t|\n2\t|\t131567\t|\tsuperkingdom\t|\n6\t|\t2\t|\tgenus\t|\n7\t|\t6\t|\tspecies\t|\n2759\t|\t131567\t|\tsuperkingdom\t|\n40674\t|\t2759\t|\tclass\t|\n9606\t|\t40674\t|\tspecies\t|\n' > "$WORKDIR/taxdump/nodes.dmp"
+          touch "$WORKDIR/taxdump/merged.dmp"
+          docker run --rm -v "$WORKDIR:/data" taxafasta-test:latest \
+            -i /data/input.fasta -t 2 -o /data/out.fasta -d /data/taxdump --no-gzip
+          grep -q "OX=7" "$WORKDIR/out.fasta"
+          ! grep -q "OX=9606" "$WORKDIR/out.fasta"
+          test -f "$WORKDIR/out.fasta.log"
+          echo "Docker smoke tests passed"
