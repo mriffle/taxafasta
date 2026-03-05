@@ -5,7 +5,6 @@ from __future__ import annotations
 import sys
 from collections import defaultdict, deque
 from pathlib import Path
-from typing import Optional
 
 
 def parse_nodes(path: Path) -> dict[int, int]:
@@ -15,7 +14,7 @@ def parse_nodes(path: Path) -> dict[int, int]:
     Only the first two columns are needed.
     """
     parent_of: dict[int, int] = {}
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         for line in fh:
             parts = line.split("\t|\t", 2)
             if len(parts) < 2:
@@ -32,14 +31,16 @@ def parse_merged(path: Path) -> dict[int, int]:
     Handles chain resolution: if old→mid→new, resolves old→new.
     """
     raw: dict[int, int] = {}
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         for line in fh:
             parts = line.split("\t|\t", 1)
             if not parts:
                 continue
             # Last column ends with \t|\n
             old_id = int(parts[0].strip())
-            new_id = int(parts[1].rstrip().rstrip("|").strip()) if len(parts) > 1 else old_id
+            new_id = (
+                int(parts[1].rstrip().rstrip("|").strip()) if len(parts) > 1 else old_id
+            )
             raw[old_id] = new_id
 
     # Resolve chains
@@ -61,7 +62,7 @@ def parse_names(path: Path) -> dict[int, str]:
     Returns {tax_id: scientific_name}.
     """
     names: dict[int, str] = {}
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         for line in fh:
             parts = line.split("\t|\t")
             if len(parts) < 4:
@@ -119,7 +120,7 @@ def expand_with_merged(
 def build_allowed_set(
     taxdump_dir: Path,
     include_taxids: list[int],
-    exclude_taxids: Optional[list[int]] = None,
+    exclude_taxids: list[int] | None = None,
     *,
     use_merged: bool = True,
 ) -> tuple[set[int], dict[int, int], dict[int, int], dict[int, str]]:
@@ -173,7 +174,8 @@ def build_allowed_set(
             resolved = merged_to.get(tid, tid) if use_merged else tid
             if resolved not in parent_of:
                 print(
-                    f"Error: Exclude taxonomy ID {tid} not found in nodes.dmp or merged.dmp.",
+                    f"Error: Exclude taxonomy ID {tid} "
+                    "not found in nodes.dmp or merged.dmp.",
                     file=sys.stderr,
                 )
                 raise SystemExit(1)

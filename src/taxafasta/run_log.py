@@ -6,7 +6,6 @@ import platform
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 from taxafasta import __version__
 from taxafasta.fasta import FilterStats
@@ -42,13 +41,13 @@ def write_log(
     input_path: Path,
     output_path: Path,
     include_taxids: list[int],
-    exclude_taxids: Optional[list[int]],
+    exclude_taxids: list[int] | None,
     use_merged: bool,
     taxdump_source: str,
     allowed_set_size: int,
     stats: FilterStats,
     elapsed_seconds: float,
-    names: Optional[dict[int, str]] = None,
+    names: dict[int, str] | None = None,
 ) -> None:
     """Write the run log file (§5.4)."""
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -61,7 +60,9 @@ def write_log(
     elapsed_str = f"{h:02d}:{m:02d}:{s:02d}"
 
     lines: list[str] = []
-    lines.append(f"taxafasta v{__version__} | Python {py_version} | {plat} | {timestamp}")
+    lines.append(
+        f"taxafasta v{__version__} | Python {py_version} | {plat} | {timestamp}"
+    )
     lines.append(f"Command: {command_line}")
     lines.append(f"Input: {input_path}")
 
@@ -99,9 +100,13 @@ def write_log(
     if total_warnings > 0:
         lines.append(f"WARNINGS ({total_warnings} unique):")
         for hdr in stats.unparseable_headers:
-            lines.append(f"  [x{stats.no_ox}] Header could not be parsed for OX field: {hdr}")
+            lines.append(
+                f"  [x{stats.no_ox}] Header could not be parsed for OX field: {hdr}"
+            )
         for taxid, count in sorted(stats.unknown_taxids.items()):
-            lines.append(f"  [x{count}] Taxonomy ID {taxid} not found in NCBI taxonomy data")
+            lines.append(
+                f"  [x{count}] Taxonomy ID {taxid} not found in NCBI taxonomy data"
+            )
         lines.append("")
 
     # Summary

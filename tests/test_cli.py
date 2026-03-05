@@ -7,8 +7,8 @@ import pytest
 from taxafasta import __version__
 from taxafasta.cli import build_parser
 
-
 # --- Argument parsing ---
+
 
 def test_parser_required_args() -> None:
     parser = build_parser()
@@ -52,19 +52,25 @@ def test_parser_multiple_taxids() -> None:
 
 def test_parser_exclude() -> None:
     parser = build_parser()
-    args = parser.parse_args(["-i", "in.fasta", "-t", "2759", "-e", "40674", "-o", "out.fasta"])
+    args = parser.parse_args(
+        ["-i", "in.fasta", "-t", "2759", "-e", "40674", "-o", "out.fasta"],
+    )
     assert args.exclude == [40674]
 
 
 def test_parser_no_gzip() -> None:
     parser = build_parser()
-    args = parser.parse_args(["-i", "in.fasta", "-t", "2", "-o", "out.fasta", "--no-gzip"])
+    args = parser.parse_args(
+        ["-i", "in.fasta", "-t", "2", "-o", "out.fasta", "--no-gzip"],
+    )
     assert args.no_gzip is True
 
 
 def test_parser_no_merge() -> None:
     parser = build_parser()
-    args = parser.parse_args(["-i", "in.fasta", "-t", "2", "-o", "out.fasta", "--no-merge"])
+    args = parser.parse_args(
+        ["-i", "in.fasta", "-t", "2", "-o", "out.fasta", "--no-merge"],
+    )
     assert args.no_merge is True
 
 
@@ -76,6 +82,7 @@ def test_parser_verbose() -> None:
 
 # --- Version ---
 
+
 def test_version(capsys: pytest.CaptureFixture[str]) -> None:
     parser = build_parser()
     with pytest.raises(SystemExit) as exc_info:
@@ -86,6 +93,7 @@ def test_version(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 # --- Help ---
+
 
 def test_help(capsys: pytest.CaptureFixture[str]) -> None:
     parser = build_parser()

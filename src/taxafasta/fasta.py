@@ -5,13 +5,13 @@ from __future__ import annotations
 import re
 import sys
 import time
-from typing import IO, Optional
+from typing import IO
 
 # Compiled regex for OX= field extraction (§4.2 step 2a)
 _OX_PATTERN = re.compile(r"OX=(\d+)")
 
 
-def extract_ox(header: str) -> Optional[int]:
+def extract_ox(header: str) -> int | None:
     """Extract the OX= taxonomy ID from a UniProt FASTA header.
 
     Returns the integer taxonomy ID, or None if no valid OX= field is found.

@@ -4,19 +4,22 @@ from __future__ import annotations
 
 import gzip
 import io
+import types
 from pathlib import Path
-from typing import IO, Union
+from typing import IO
 
 # Buffer sizes for high-throughput I/O (§4.3)
-READ_BUFFER_SIZE = 16 * 1024 * 1024   # 16 MB
-WRITE_BUFFER_SIZE = 16 * 1024 * 1024   # 16 MB
+READ_BUFFER_SIZE = 16 * 1024 * 1024  # 16 MB
+WRITE_BUFFER_SIZE = 16 * 1024 * 1024  # 16 MB
 
 # Gzip magic bytes
 _GZIP_MAGIC = b"\x1f\x8b"
 
 # Try to import isal for faster gzip (§10)
+_igzip: types.ModuleType | None
 try:
-    import isal.igzip as _igzip  # type: ignore[import-untyped]
+    import isal.igzip as _igzip
+
     _HAS_ISAL = True
 except ImportError:
     _igzip = None
@@ -28,13 +31,13 @@ def has_isal() -> bool:
     return _HAS_ISAL
 
 
-def is_gzip_file(path: Union[str, Path]) -> bool:
+def is_gzip_file(path: str | Path) -> bool:
     """Detect gzip format by magic bytes, not file extension (§3.1)."""
     with open(path, "rb") as fh:
         return fh.read(2) == _GZIP_MAGIC
 
 
-def open_input(path: Union[str, Path]) -> IO[str]:
+def open_input(path: str | Path) -> IO[str]:
     """Open an input file transparently handling gzip.
 
     Uses isal.igzip when available for ~5-10x faster decompression.
@@ -47,11 +50,16 @@ def open_input(path: Union[str, Path]) -> IO[str]:
         else:
             raw = gzip.open(path, mode="rb")
         return io.TextIOWrapper(raw, encoding="utf-8", errors="replace")
-    return open(path, "r", buffering=READ_BUFFER_SIZE, encoding="utf-8", errors="replace")
+    return open(
+        path,
+        buffering=READ_BUFFER_SIZE,
+        encoding="utf-8",
+        errors="replace",
+    )
 
 
 def open_output(
-    path: Union[str, Path],
+    path: str | Path,
     *,
     use_gzip: bool = True,
 ) -> tuple[IO[str], Path]:
@@ -76,11 +84,20 @@ def open_output(
         else:
             raw = gzip.open(path, mode="wb")
         stream: IO[str] = io.TextIOWrapper(
-            io.BufferedWriter(raw, buffer_size=WRITE_BUFFER_SIZE),  # type: ignore[arg-type]
+            io.BufferedWriter(
+                raw,
+                buffer_size=WRITE_BUFFER_SIZE,
+            ),
             encoding="utf-8",
             newline="",
         )
         return stream, path
 
-    stream = open(path, "w", buffering=WRITE_BUFFER_SIZE, encoding="utf-8", newline="")
+    stream = open(
+        path,
+        "w",
+        buffering=WRITE_BUFFER_SIZE,
+        encoding="utf-8",
+        newline="",
+    )
     return stream, path

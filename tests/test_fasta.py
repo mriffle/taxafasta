@@ -6,21 +6,28 @@ import io
 
 from taxafasta.fasta import FilterStats, extract_ox, filter_fasta
 
-
 # --- OX field extraction ---
 
+
 def test_extract_ox_swissprot() -> None:
-    header = ">sp|P12345|ARATH_ECOLI Some protein OS=Azorhizobium caulinodans OX=7 GN=gene1 PE=1 SV=1"
+    header = (
+        ">sp|P12345|ARATH_ECOLI Some protein"
+        " OS=Azorhizobium caulinodans OX=7 GN=gene1 PE=1 SV=1"
+    )
     assert extract_ox(header) == 7
 
 
 def test_extract_ox_trembl() -> None:
-    header = ">tr|Q99999|HUMAN_PROT Human protein OS=Homo sapiens OX=9606 GN=TP53 PE=1 SV=2"
+    header = (
+        ">tr|Q99999|HUMAN_PROT Human protein OS=Homo sapiens OX=9606 GN=TP53 PE=1 SV=2"
+    )
     assert extract_ox(header) == 9606
 
 
 def test_extract_ox_no_gn_field() -> None:
-    header = ">sp|P99998|VIRUS_PROT Viral protein OS=Tobacco mosaic virus OX=11111 PE=1 SV=1"
+    header = (
+        ">sp|P99998|VIRUS_PROT Viral protein OS=Tobacco mosaic virus OX=11111 PE=1 SV=1"
+    )
     assert extract_ox(header) == 11111
 
 
@@ -46,6 +53,7 @@ def test_extract_ox_large_id() -> None:
 
 # --- FilterStats ---
 
+
 def test_filter_stats_no_ox_warning(capsys: object) -> None:
     stats = FilterStats()
     stats.record_no_ox(">bad header line 1")
@@ -65,6 +73,7 @@ def test_filter_stats_unknown_taxid(capsys: object) -> None:
 
 
 # --- filter_fasta ---
+
 
 def _make_fasta(*entries: tuple[str, str]) -> str:
     """Helper: build a FASTA string from (header, sequence) tuples."""

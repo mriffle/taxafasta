@@ -7,8 +7,8 @@ from pathlib import Path
 
 from taxafasta.io_utils import has_isal, is_gzip_file, open_input, open_output
 
-
 # --- Gzip detection ---
+
 
 def test_is_gzip_file_true(sample_fasta_gz_path: Path) -> None:
     assert is_gzip_file(sample_fasta_gz_path) is True
@@ -35,6 +35,7 @@ def test_is_not_gzip_with_gz_extension(tmp_path: Path) -> None:
 
 # --- Transparent opening ---
 
+
 def test_open_input_plain(sample_fasta_path: Path) -> None:
     with open_input(sample_fasta_path) as fh:
         content = fh.read()
@@ -47,7 +48,10 @@ def test_open_input_gzip(sample_fasta_gz_path: Path) -> None:
     assert ">sp|P12345|ARATH_ECOLI" in content
 
 
-def test_open_input_equivalence(sample_fasta_path: Path, sample_fasta_gz_path: Path) -> None:
+def test_open_input_equivalence(
+    sample_fasta_path: Path,
+    sample_fasta_gz_path: Path,
+) -> None:
     """Plain and gzip inputs should produce the same content."""
     with open_input(sample_fasta_path) as fh:
         plain = fh.read()
@@ -57,6 +61,7 @@ def test_open_input_equivalence(sample_fasta_path: Path, sample_fasta_gz_path: P
 
 
 # --- Output ---
+
 
 def test_open_output_gzip_default(tmp_path: Path) -> None:
     out_path = tmp_path / "out.fasta"
@@ -90,6 +95,7 @@ def test_open_output_no_gzip(tmp_path: Path) -> None:
 
 
 # --- isal fallback ---
+
 
 def test_has_isal_returns_bool() -> None:
     """has_isal() should return a bool regardless of installation status."""

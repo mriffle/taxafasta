@@ -119,7 +119,10 @@ def ensure_taxdump(
     if taxdump_dir is not None:
         taxdump_dir = Path(taxdump_dir)
         if not taxdump_dir.is_dir():
-            print(f"Error: Taxdump directory does not exist: {taxdump_dir}", file=sys.stderr)
+            print(
+                f"Error: Taxdump directory does not exist: {taxdump_dir}",
+                file=sys.stderr,
+            )
             raise SystemExit(1)
         for fname in _REQUIRED_FILES:
             if not (taxdump_dir / fname).exists():

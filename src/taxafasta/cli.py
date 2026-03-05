@@ -22,20 +22,23 @@ def build_parser() -> argparse.ArgumentParser:
         description="Filter UniProt FASTA files by NCBI taxonomy.",
     )
     parser.add_argument(
-        "--input", "-i",
+        "--input",
+        "-i",
         required=True,
         type=Path,
         help="Path to input UniProt FASTA file (plain or gzipped).",
     )
     parser.add_argument(
-        "--taxid", "-t",
+        "--taxid",
+        "-t",
         required=True,
         nargs="+",
         type=int,
         help="One or more NCBI taxonomy IDs to include (all descendants included).",
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         required=True,
         type=Path,
         help="Path to output FASTA file. Gzip-compressed by default.",
@@ -47,7 +50,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Disable gzip compression of output.",
     )
     parser.add_argument(
-        "--taxdump", "-d",
+        "--taxdump",
+        "-d",
         type=Path,
         default=None,
         help="Path to an already-extracted taxdump directory.",
@@ -56,10 +60,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--cache-dir",
         type=Path,
         default=None,
-        help="Directory for caching downloaded taxonomy files (default: ~/.taxafasta/).",
+        help="Directory for caching downloaded taxonomy files.",
     )
     parser.add_argument(
-        "--exclude", "-e",
+        "--exclude",
+        "-e",
         nargs="+",
         type=int,
         default=None,
@@ -72,7 +77,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Disable merged taxonomy ID resolution.",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         default=False,
         help="Periodic progress updates to stderr.",
@@ -91,7 +97,10 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     # Record the full command line for the log
-    command_line = "taxafasta " + " ".join(sys.argv[1:]) if argv is None else "taxafasta " + " ".join(argv)
+    if argv is None:
+        command_line = "taxafasta " + " ".join(sys.argv[1:])
+    else:
+        command_line = "taxafasta " + " ".join(argv)
 
     # Validate input file
     input_path: Path = args.input
@@ -175,9 +184,9 @@ def main(argv: list[str] | None = None) -> None:
     )
 
     # Final summary to stderr
-    rate = stats.total / elapsed if elapsed > 0 else 0
     print(
-        f"Done. {stats.included:,} / {stats.total:,} entries written to {resolved_output}",
+        f"Done. {stats.included:,} / {stats.total:,} entries "
+        f"written to {resolved_output}",
         file=sys.stderr,
     )
 

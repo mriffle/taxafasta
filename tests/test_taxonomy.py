@@ -14,8 +14,8 @@ from taxafasta.taxonomy import (
     parse_nodes,
 )
 
-
 # --- Parsing nodes.dmp ---
+
 
 def test_parse_nodes_basic(tiny_nodes_path: Path) -> None:
     parent_of = parse_nodes(tiny_nodes_path)
@@ -33,6 +33,7 @@ def test_parse_nodes_all_entries(tiny_nodes_path: Path) -> None:
 
 # --- Parsing merged.dmp ---
 
+
 def test_parse_merged_basic(tiny_merged_path: Path) -> None:
     merged = parse_merged(tiny_merged_path)
     assert merged[50] == 7
@@ -47,6 +48,7 @@ def test_parse_merged_chain_resolution(tiny_merged_path: Path) -> None:
 
 # --- Parsing names.dmp ---
 
+
 def test_parse_names(tiny_names_path: Path) -> None:
     names = parse_names(tiny_names_path)
     assert names[2] == "Bacteria"
@@ -55,6 +57,7 @@ def test_parse_names(tiny_names_path: Path) -> None:
 
 
 # --- Children index ---
+
 
 def test_build_children_index(tiny_nodes_path: Path) -> None:
     parent_of = parse_nodes(tiny_nodes_path)
@@ -71,6 +74,7 @@ def test_build_children_index(tiny_nodes_path: Path) -> None:
 
 
 # --- Descendant set construction ---
+
 
 def test_collect_descendants_single_root(tiny_nodes_path: Path) -> None:
     parent_of = parse_nodes(tiny_nodes_path)
@@ -110,6 +114,7 @@ def test_collect_descendants_root_returns_everything(tiny_nodes_path: Path) -> N
 
 # --- Merged ID expansion ---
 
+
 def test_expand_with_merged_included(tiny_merged_path: Path) -> None:
     merged = parse_merged(tiny_merged_path)
     allowed = {7, 9}  # taxid 50->7 and 51->9 should be added
@@ -127,6 +132,7 @@ def test_expand_with_merged_excluded() -> None:
 
 # --- Exclude logic ---
 
+
 def test_exclude_subtree(tiny_taxdump_dir: Path) -> None:
     # Include eukaryotes (2759), exclude mammals (40674)
     allowed, _, _, _ = build_allowed_set(
@@ -141,6 +147,7 @@ def test_exclude_subtree(tiny_taxdump_dir: Path) -> None:
 
 # --- Unknown taxid handling ---
 
+
 def test_unknown_user_taxid(tiny_taxdump_dir: Path) -> None:
     """User-supplied taxid not in tree should cause SystemExit."""
     import pytest
@@ -151,10 +158,9 @@ def test_unknown_user_taxid(tiny_taxdump_dir: Path) -> None:
 
 # --- build_allowed_set integration ---
 
+
 def test_build_allowed_set_bacteria(tiny_taxdump_dir: Path) -> None:
-    allowed, parent_of, merged_to, names = build_allowed_set(
-        tiny_taxdump_dir, [2]
-    )
+    allowed, parent_of, merged_to, names = build_allowed_set(tiny_taxdump_dir, [2])
     # Should include bacteria subtree
     assert 2 in allowed
     assert 7 in allowed
@@ -171,7 +177,9 @@ def test_build_allowed_set_bacteria(tiny_taxdump_dir: Path) -> None:
 
 def test_build_allowed_set_no_merge(tiny_taxdump_dir: Path) -> None:
     allowed, _, _, _ = build_allowed_set(
-        tiny_taxdump_dir, [2], use_merged=False,
+        tiny_taxdump_dir,
+        [2],
+        use_merged=False,
     )
     assert 2 in allowed
     assert 7 in allowed

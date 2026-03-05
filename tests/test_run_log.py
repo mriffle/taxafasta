@@ -7,8 +7,8 @@ from pathlib import Path
 from taxafasta.fasta import FilterStats
 from taxafasta.run_log import resolve_log_path, write_log
 
-
 # --- Log file naming ---
+
 
 def test_resolve_log_path_basic(tmp_path: Path) -> None:
     out = tmp_path / "bacteria.fasta"
@@ -40,6 +40,7 @@ def test_resolve_log_path_multiple_collisions(tmp_path: Path) -> None:
 
 
 # --- write_log ---
+
 
 def _make_stats(
     total: int = 100,

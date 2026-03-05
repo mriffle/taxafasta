@@ -255,7 +255,7 @@ Given the scale of UniProt TrEMBL (250M+ entries, hundreds of GB uncompressed):
 
 ## 9. Project Structure
 
-See §16 for the complete project structure including CI/CD workflow files.
+See §17 for the complete project structure including CI/CD workflow files.
 
 ---
 
@@ -283,11 +283,27 @@ The tool should have minimal required dependencies. The `isal` and `requests` pa
 
 ---
 
-## 11. Testing Strategy
+## 11. Development Environment
+
+All Python commands — installing packages, running tests, linting, type checking — **must** be executed via a project-local virtual environment (venv). Never use the system Python directly.
+
+```bash
+python -m venv .venv
+.venv/bin/pip install -e ".[all,dev]"
+.venv/bin/pytest tests/
+.venv/bin/ruff check src/ tests/
+.venv/bin/mypy src/
+```
+
+The `.venv/` directory is already listed in `.gitignore` and must not be committed.
+
+---
+
+## 12. Testing Strategy
 
 Testing is paramount. Every module must have thorough unit tests. Accuracy and fidelity are the top priorities.
 
-### 11.1 Taxonomy Module Tests (`test_taxonomy.py`)
+### 12.1 Taxonomy Module Tests (`test_taxonomy.py`)
 
 - **Parsing `nodes.dmp`**: Verify correct extraction of `tax_id` → `parent_tax_id` from fixture data that replicates the real `\t|\t` delimited format. Test with edge cases: the root node (taxid 1 is its own parent), single-child chains, wide branching.
 - **Parsing `merged.dmp`**: Verify old→new mapping. Test with entries where the target has itself been merged (chain resolution).
@@ -297,7 +313,7 @@ Testing is paramount. Every module must have thorough unit tests. Accuracy and f
 - **Exclude logic**: Verify that exclusion taxids and their descendants are correctly removed from the allowed set, including when inclusion and exclusion overlap.
 - **Unknown taxid handling**: Verify appropriate warning when a user-supplied taxid does not exist in the tree.
 
-### 11.2 FASTA Module Tests (`test_fasta.py`)
+### 12.2 FASTA Module Tests (`test_fasta.py`)
 
 - **OX field extraction**: Test the regex against a variety of real-world UniProt header formats — Swiss-Prot entries, TrEMBL entries, entries with and without `GN=` fields, entries where `OX=` appears at different positions in the header. Verify correct integer extraction.
 - **Missing OX field**: Test behavior when a header line lacks `OX=`. Verify the entry is excluded, a warning is generated on the first occurrence, and subsequent occurrences are counted silently.
@@ -309,7 +325,7 @@ Testing is paramount. Every module must have thorough unit tests. Accuracy and f
 - **Large headers**: Test with very long header lines (thousands of characters).
 - **Output fidelity**: Verify that the output FASTA is byte-for-byte identical to what a manual extraction would produce — headers and sequences are not modified, line endings are preserved, no trailing whitespace is added or removed.
 
-### 11.3 I/O Module Tests (`test_io_utils.py`)
+### 12.3 I/O Module Tests (`test_io_utils.py`)
 
 - **Gzip detection**: Test that gzip files are correctly identified by magic bytes regardless of file extension. Test that plain text files are not misidentified.
 - **Transparent opening**: Verify that the same API works for both gzip and plain files, returning equivalent content.
@@ -318,7 +334,7 @@ Testing is paramount. Every module must have thorough unit tests. Accuracy and f
 - **No-gzip output**: Verify that `--no-gzip` produces a plain text file without `.gz` suffix appended.
 - **Buffer sizes**: Verify that custom buffer sizes are applied (may require mocking).
 
-### 11.4 Download Module Tests (`test_download.py`)
+### 12.4 Download Module Tests (`test_download.py`)
 
 - **Successful download** (mocked): Mock HTTP responses to verify correct download, extraction, and caching behavior.
 - **Cache hit**: Verify that a second call with existing cache does not re-download.
@@ -326,7 +342,7 @@ Testing is paramount. Every module must have thorough unit tests. Accuracy and f
 - **Corrupt archive**: Provide a truncated/corrupt tar.gz fixture and verify error handling.
 - **File permissions**: Verify the cache directory is created with appropriate permissions.
 
-### 11.5 Log Module Tests (`test_run_log.py`)
+### 12.5 Log Module Tests (`test_run_log.py`)
 
 - **Log file naming**: Verify the log file is created alongside the output file with `.log` extension. Verify that if `bacteria.fasta.log` exists, the next run produces `bacteria.fasta.log1`, then `.log2`, etc.
 - **Log file naming with gzip**: Verify that when the output is `bacteria.fasta.gz`, the log file is `bacteria.fasta.log` (not `bacteria.fasta.gz.log`).
@@ -338,14 +354,14 @@ Testing is paramount. Every module must have thorough unit tests. Accuracy and f
 - **Summary statistics**: Verify the log contains correct counts for total, included, excluded, skipped (no OX), unknown taxid entries, elapsed time, and processing rate.
 - **Empty warnings**: Verify the log omits the warnings section entirely when no warnings were generated.
 
-### 11.6 CLI Tests (`test_cli.py`)
+### 12.6 CLI Tests (`test_cli.py`)
 
 - **Argument parsing**: Test all argument combinations — required args missing, invalid values, conflicting options.
 - **Help output**: Verify `--help` produces expected output.
 - **Version output**: Verify `--version` prints the version string.
 - **Exit codes**: Verify correct exit codes for success, failure, and partial-success scenarios.
 
-### 11.7 Integration Tests (`test_integration.py`)
+### 12.7 Integration Tests (`test_integration.py`)
 
 These are end-to-end tests that invoke the CLI on fixture files and verify output.
 
@@ -363,7 +379,7 @@ These are end-to-end tests that invoke the CLI on fixture files and verify outpu
 - **No matches**: Verify behavior when no entries match the filter (empty output, exit code 0, log reflects this).
 - **All match**: Verify behavior when every entry matches.
 
-### 11.8 Accuracy Tests
+### 12.8 Accuracy Tests
 
 A dedicated set of tests using carefully constructed fixture data that exercises every branch of the algorithm:
 
@@ -376,7 +392,7 @@ A dedicated set of tests using carefully constructed fixture data that exercises
 - An entry whose taxid is in `delnodes.dmp` (should NOT match, warn).
 - An entry with no OX field (should be excluded, warning generated).
 
-### 11.9 Performance / Regression Tests
+### 12.9 Performance / Regression Tests
 
 Using `pytest-benchmark`:
 
@@ -384,9 +400,35 @@ Using `pytest-benchmark`:
 - Benchmark FASTA throughput on a generated fixture of 100K entries.
 - Track these benchmarks over time to detect performance regressions.
 
+### 12.10 Testing Practices & Lessons Learned
+
+The following practices have been established through development experience and must be followed:
+
+**Fixture isolation.** Test taxonomy fixtures (`tiny_nodes.dmp`, `tiny_merged.dmp`, `tiny_names.dmp`) must be stored in a dedicated subdirectory (`tests/data/tiny_taxdump/`) with standardized names (`nodes.dmp`, `merged.dmp`, `names.dmp`). The original `tiny_*` prefixed files remain in `tests/data/` for unit test use. Integration tests must always use the `tiny_taxdump_dir` fixture (pointing to `tests/data/tiny_taxdump/`) for the `--taxdump` argument — never the top-level `data_dir`, which could contain accidentally downloaded real NCBI taxonomy files.
+
+**Mocking HTTP at the right level.** The download module uses `requests` when available, falling back to `urllib`. Tests must mock the internal `_fetch_url` helper function (not `requests.get` or `urllib.request.urlopen` directly) to ensure test behavior is deterministic regardless of which HTTP library is installed.
+
+**Every test function must do something.** No test function should contain only `pass`. If a test case is difficult to construct, use a synthetic fixture (e.g., a temporary FASTA file with known entries) to exercise the behavior.
+
+**Code style enforcement.** All code must pass `ruff check` (lint), `ruff format --check` (formatting), and `mypy --strict` (type checking) before commit. Specific rules enforced:
+- Line length limit: 88 characters.
+- Use `X | None` instead of `Optional[X]`, and `X | Y` instead of `Union[X, Y]` (Python 3.10+).
+- No unnecessary `"r"` mode argument in `open()` calls.
+- No unused imports or variables.
+- Import blocks must be sorted with no extraneous blank lines between the last import and the first code statement.
+
+**Run all checks via venv.** Tests, linting, and type checking must always be invoked through the project virtual environment:
+
+```bash
+.venv/bin/pytest tests/
+.venv/bin/ruff check src/ tests/
+.venv/bin/ruff format --check src/ tests/
+.venv/bin/mypy src/
+```
+
 ---
 
-## 12. Naming Conventions
+## 13. Naming Conventions
 
 Consistent naming across all distribution channels:
 
@@ -403,9 +445,9 @@ The `<org>` placeholder refers to the GitHub user or organization that owns the 
 
 ---
 
-## 13. Distribution
+## 14. Distribution
 
-### 13.1 PyPI (pip)
+### 14.1 PyPI (pip)
 
 The project uses `pyproject.toml` with a PEP 621 compliant build configuration (e.g., `hatchling` or `setuptools` as the build backend). A console script entry point maps `taxafasta` to the CLI:
 
@@ -415,14 +457,14 @@ name = "taxafasta"
 dynamic = ["version"]
 description = "Filter UniProt FASTA files by NCBI taxonomy"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
-    "License :: OSI Approved :: Apache License",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
 ]
 
@@ -436,11 +478,11 @@ all = ["isal>=1.0", "requests>=2.28"]
 dev = ["pytest", "pytest-cov", "pytest-benchmark", "mypy", "ruff"]
 ```
 
-### 13.2 Version Management
+### 14.2 Version Management
 
 The package version is the single source of truth, defined in `src/taxafasta/__init__.py` as `__version__`. The `pyproject.toml` reads it dynamically. Git release tags must follow the format `v<major>.<minor>.<patch>` (e.g., `v1.2.3`). The CI workflows derive all Docker image tags and PyPI version strings from this Git tag.
 
-### 13.3 Docker
+### 14.3 Docker
 
 A multi-stage Dockerfile:
 
@@ -475,11 +517,11 @@ docker run --rm -v /data:/data ghcr.io/<org>/taxafasta:latest \
 
 ---
 
-## 14. GitHub Actions CI/CD
+## 15. GitHub Actions CI/CD
 
 The project includes two GitHub Actions workflow files in `.github/workflows/`.
 
-### 14.1 `ci.yml` — Continuous Integration (runs on every push and PR)
+### 15.1 `ci.yml` — Continuous Integration (runs on every push and PR)
 
 **Trigger**: Every push to any branch and every pull request.
 
@@ -499,7 +541,7 @@ The project includes two GitHub Actions workflow files in `.github/workflows/`.
 
 All three jobs run in parallel. The full workflow should complete in under 5 minutes for the unit/integration test suite.
 
-### 14.2 `release.yml` — Release & Publish (runs on GitHub Release creation)
+### 15.2 `release.yml` — Release & Publish (runs on GitHub Release creation)
 
 **Trigger**: `on: release: types: [published]`. This fires when a maintainer creates a GitHub Release with a tag matching `v*.*.*` (e.g., `v1.2.3`).
 
@@ -541,7 +583,7 @@ All three jobs run in parallel. The full workflow should complete in under 5 min
 - The repository's `GITHUB_TOKEN` must have `packages: write` permission (set in the workflow's `permissions` block).
 - For PyPI trusted publishing, the repository must be registered as a trusted publisher on pypi.org under the `taxafasta` project.
 
-### 14.3 Workflow File Locations
+### 15.3 Workflow File Locations
 
 ```
 .github/
@@ -550,7 +592,7 @@ All three jobs run in parallel. The full workflow should complete in under 5 min
     └── release.yml   # Test + publish to PyPI + publish Docker image on release
 ```
 
-### 14.4 CI Tests for CI Configuration (`test_ci.py`, optional)
+### 15.4 CI Tests for CI Configuration (`test_ci.py`, optional)
 
 While not strictly unit tests, the project may include a smoke test that verifies:
 - The `Dockerfile` builds successfully (can be run locally via `docker build --target test .`).
@@ -558,11 +600,11 @@ While not strictly unit tests, the project may include a smoke test that verifie
 
 ---
 
-## 15. README
+## 16. README
 
 The repository must include a `README.md` at the root. It serves as the primary documentation and is also displayed on PyPI and the GitHub repository page. The README should contain the following sections:
 
-### 15.1 Header & Badges
+### 16.1 Header & Badges
 
 A one-line project name and tagline, followed by CI/CD status badges:
 
@@ -574,10 +616,10 @@ Filter UniProt protein FASTA files by NCBI taxonomy.
 [![CI](https://github.com/<org>/taxafasta/actions/workflows/ci.yml/badge.svg)](...)
 [![PyPI version](https://img.shields.io/pypi/v/taxafasta)](https://pypi.org/project/taxafasta/)
 [![Docker](https://img.shields.io/badge/ghcr.io-taxafasta-blue)](https://ghcr.io/<org>/taxafasta)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 ```
 
-### 15.2 Overview
+### 16.2 Overview
 
 A concise (3–5 sentence) description of what the tool does and why it exists. Key points to cover:
 - Filters large UniProt FASTA files (Swiss-Prot and/or TrEMBL) to include only proteins from specified NCBI taxonomy subtrees.
@@ -585,7 +627,7 @@ A concise (3–5 sentence) description of what the tool does and why it exists. 
 - Uses the NCBI taxonomy hierarchy to include all descendants of specified taxonomy IDs.
 - Handles merged/deprecated taxonomy IDs automatically.
 
-### 15.3 How It Works
+### 16.3 How It Works
 
 A brief (1–2 paragraph) description of the architecture, aimed at someone who wants to understand the tool's approach without reading the full specification. Cover:
 - The tool parses NCBI taxonomy dump files (`nodes.dmp`, `merged.dmp`) to build a parent-child tree in memory.
@@ -593,7 +635,7 @@ A brief (1–2 paragraph) description of the architecture, aimed at someone who 
 - The FASTA file is streamed line-by-line and never loaded into memory. Each entry's `OX=` field is extracted and checked against the pre-computed set. Matching entries are written to the gzip-compressed output.
 - A log file is generated for every run recording parameters, taxonomy version, warnings, and summary statistics.
 
-### 15.4 Installation
+### 16.4 Installation
 
 Show both pip and Docker installation methods:
 
@@ -616,7 +658,7 @@ docker pull ghcr.io/<org>/taxafasta:latest
 ```
 ```
 
-### 15.5 Quick Start
+### 16.5 Quick Start
 
 A minimal working example that someone can copy-paste:
 
@@ -631,7 +673,7 @@ taxafasta -i uniprot_trembl.fasta.gz -t 2 -o bacteria.fasta
 #   bacteria.fasta.log  — run log with parameters, warnings, and statistics
 ```
 
-### 15.6 Usage Examples
+### 16.6 Usage Examples
 
 A more comprehensive set of examples showing common use cases:
 
@@ -657,7 +699,7 @@ taxafasta -i uniprot_trembl.fasta.gz -t 9606 -o human.fasta --no-gzip
 taxafasta -i uniprot_trembl.fasta.gz -t 2 -o bacteria.fasta -v
 ```
 
-### 15.7 Docker Usage
+### 16.7 Docker Usage
 
 Show equivalent Docker examples with volume mounting:
 
@@ -675,7 +717,7 @@ docker run --rm \
   -i /data/uniprot_trembl.fasta.gz -t 2 --taxdump /taxonomy -o /data/bacteria.fasta
 ```
 
-### 15.8 Common Taxonomy IDs
+### 16.8 Common Taxonomy IDs
 
 A reference table of commonly used taxonomy IDs for convenience:
 
@@ -692,45 +734,47 @@ A reference table of commonly used taxonomy IDs for convenience:
 | 3193 | Embryophyta (land plants) |
 | 4751 | Fungi |
 
-### 15.9 NCBI Taxonomy Data
+### 16.9 NCBI Taxonomy Data
 
 Brief explanation of how the tool obtains taxonomy data:
 - By default, the tool automatically downloads and caches `taxdump.tar.gz` from NCBI's FTP server on first run.
 - Users can supply pre-downloaded taxonomy files with `--taxdump`.
 - Link to the NCBI taxonomy FTP: `https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/`
 
-### 15.10 Development
+### 16.10 Development
 
-Brief instructions for contributors:
+Brief instructions for contributors. **All Python commands must be run via a project-local virtual environment (venv)**, never the system Python:
 
 ```
 ## Development
 
 git clone https://github.com/<org>/taxafasta.git
 cd taxafasta
-pip install -e ".[all,dev]"
+python -m venv .venv
+source .venv/bin/activate    # Linux/macOS
+.venv/bin/pip install -e ".[all,dev]"
 
 # Run tests
-pytest
+.venv/bin/pytest
 
 # Run with coverage
-pytest --cov=taxafasta
+.venv/bin/pytest --cov=taxafasta
 
 # Lint and format
-ruff check src/ tests/
-ruff format src/ tests/
+.venv/bin/ruff check src/ tests/
+.venv/bin/ruff format src/ tests/
 
 # Type check
-mypy src/
+.venv/bin/mypy src/
 ```
 
-### 15.11 License
+### 16.11 License
 
-State the license (MIT recommended for a bioinformatics utility).
+The project is licensed under the Apache License 2.0. See `LICENSE` for the full text.
 
 ---
 
-## 16. Project Structure (updated)
+## 17. Project Structure (updated)
 
 ```
 taxafasta/
@@ -740,8 +784,8 @@ taxafasta/
 │       └── release.yml           # Test + publish PyPI + publish Docker on release
 ├── pyproject.toml                # Project metadata, build config, dependencies
 ├── Dockerfile                    # Multi-stage build (build → test → runtime)
-├── README.md                     # Project documentation (see §15)
-├── LICENSE                       # MIT license
+├── README.md                     # Project documentation (see §16)
+├── LICENSE                       # Apache 2.0 license
 ├── src/
 │   └── taxafasta/
 │       ├── __init__.py           # Package init, __version__
@@ -762,16 +806,20 @@ taxafasta/
     ├── test_cli.py               # Integration tests for CLI argument handling
     ├── test_integration.py       # End-to-end tests with real-format fixture files
     └── data/                     # Small fixture files for testing
-        ├── tiny_nodes.dmp
+        ├── tiny_nodes.dmp        # Unit test taxonomy fixture (tiny_ prefix)
         ├── tiny_merged.dmp
         ├── tiny_names.dmp
+        ├── tiny_taxdump/         # Integration test taxdump directory
+        │   ├── nodes.dmp         # Copies with standard names for --taxdump
+        │   ├── merged.dmp
+        │   └── names.dmp
         ├── sample.fasta
         └── sample.fasta.gz
 ```
 
 ---
 
-## 17. Design Decisions & Rationale
+## 18. Design Decisions & Rationale
 
 ### Why a pre-computed set instead of per-entry tree traversal?
 
@@ -793,7 +841,7 @@ Python's built-in `gzip` module is pure Python (wrapping zlib) and is significan
 
 ---
 
-## 18. Future Considerations
+## 19. Future Considerations
 
 These are explicitly out of scope for v1.0 but may be considered later:
 
@@ -806,13 +854,13 @@ These are explicitly out of scope for v1.0 but may be considered later:
 
 ---
 
-## 19. Open Questions
+## 20. Open Questions
 
 1. **Compressed output format**: Should the tool support writing `.zst` (Zstandard) compressed output in addition to gzip? Zstandard offers better compression ratios and speed, but gzip is more universally supported in bioinformatics toolchains.
 
 2. **`--exclude` in v1.0**: The `--exclude` flag adds implementation and testing complexity. Should it be included in v1.0 or deferred to a later release?
 
-## 20. Resolved Decisions
+## 21. Resolved Decisions
 
 - **Entries without OX fields**: Always excluded. No configuration flag. A warning is printed on the first occurrence. (§5.5)
 - **Output compression**: Gzip-compressed by default, controllable via `--no-gzip`. (§5.1)
