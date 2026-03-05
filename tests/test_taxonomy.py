@@ -145,6 +145,26 @@ def test_exclude_subtree(tiny_taxdump_dir: Path) -> None:
     assert 9606 not in allowed  # Human is mammal
 
 
+def test_exclude_multiple_subtrees(tiny_taxdump_dir: Path) -> None:
+    # Include bacteria (2), exclude two sub-branches: 335928 (family containing 6,7)
+    # and 1706371 (family containing 10,11). Only 32199 branch (containing 9) should remain.
+    allowed, _, _, _ = build_allowed_set(
+        tiny_taxdump_dir,
+        [2],
+        [335928, 1706371],
+    )
+    assert 2 in allowed
+    assert 32199 in allowed
+    assert 9 in allowed
+    # Excluded branches
+    assert 335928 not in allowed
+    assert 6 not in allowed
+    assert 7 not in allowed
+    assert 1706371 not in allowed
+    assert 10 not in allowed
+    assert 11 not in allowed
+
+
 # --- Unknown taxid handling ---
 
 

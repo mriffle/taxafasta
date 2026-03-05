@@ -46,7 +46,7 @@ def test_parser_basic() -> None:
 
 def test_parser_multiple_taxids() -> None:
     parser = build_parser()
-    args = parser.parse_args(["-i", "in.fasta", "-t", "2", "10239", "-o", "out.fasta"])
+    args = parser.parse_args(["-i", "in.fasta", "-t", "2", "-t", "10239", "-o", "out.fasta"])
     assert args.taxid == [2, 10239]
 
 
@@ -56,6 +56,14 @@ def test_parser_exclude() -> None:
         ["-i", "in.fasta", "-t", "2759", "-e", "40674", "-o", "out.fasta"],
     )
     assert args.exclude == [40674]
+
+
+def test_parser_multiple_excludes() -> None:
+    parser = build_parser()
+    args = parser.parse_args(
+        ["-i", "in.fasta", "-t", "1", "-e", "40674", "-e", "10239", "-o", "out.fasta"],
+    )
+    assert args.exclude == [40674, 10239]
 
 
 def test_parser_no_gzip() -> None:

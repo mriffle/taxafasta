@@ -103,12 +103,12 @@ The tool should use Python's `argparse` (or `click`) for CLI parsing. The comman
 | Argument | Short | Required | Description |
 |---|---|---|---|
 | `--input` | `-i` | Yes | Path to input UniProt FASTA file (plain or gzipped) |
-| `--taxid` | `-t` | Yes | One or more NCBI taxonomy IDs to include (space-separated or repeated). All descendants are automatically included. |
+| `--taxid` | `-t` | Yes | NCBI taxonomy ID to include. All descendants are automatically included. Repeat for multiple IDs (e.g., `-t 2 -t 10239`). |
 | `--output` | `-o` | Yes | Path to output FASTA file. Output is gzip-compressed by default (see `--no-gzip`). If path does not end in `.gz`, the suffix `.gz` is appended automatically unless `--no-gzip` is set. |
 | `--no-gzip` | | No | Disable gzip compression of output. Write uncompressed FASTA. |
 | `--taxdump` | `-d` | No | Path to an already-extracted taxdump directory containing `nodes.dmp`, `merged.dmp`, etc. If omitted, the program downloads and caches `taxdump.tar.gz`. |
 | `--cache-dir` | | No | Directory for caching downloaded taxonomy files. Defaults to `~/.taxafasta/`. |
-| `--exclude` | `-e` | No | One or more NCBI taxonomy IDs to exclude (with descendants), applied after inclusion. |
+| `--exclude` | `-e` | No | NCBI taxonomy ID to exclude (with descendants), applied after inclusion. Repeat for multiple IDs (e.g., `-e 40674 -e 10239`). |
 | `--no-merge` | | No | Flag to disable merged taxonomy ID resolution. |
 | `--verbose` | `-v` | No | Periodic progress updates to stderr (see §5.3 Progress Reporting). |
 | `--version` | | No | Print version and exit. |
@@ -121,7 +121,7 @@ taxafasta -i uniprot_trembl.fasta.gz -t 2 -o bacteria.fasta
 # produces bacteria.fasta.gz and bacteria.fasta.log
 
 # Filter to bacteria and viruses
-taxafasta -i uniprot_trembl.fasta.gz -t 2 10239 -o bacteria_and_viruses.fasta
+taxafasta -i uniprot_trembl.fasta.gz -t 2 -t 10239 -o bacteria_and_viruses.fasta
 
 # Uncompressed output
 taxafasta -i uniprot_trembl.fasta.gz -t 9606 -o human.fasta --no-gzip
@@ -173,7 +173,7 @@ Example log file:
 
 ```
 taxafasta v1.0.0 | Python 3.12.1 | Linux x86_64 | 2025-03-05T14:22:07Z
-Command: taxafasta -i uniprot_trembl.fasta.gz -t 2 10239 -o bacteria_viruses.fasta -v
+Command: taxafasta -i uniprot_trembl.fasta.gz -t 2 -t 10239 -o bacteria_viruses.fasta -v
 Input: uniprot_trembl.fasta.gz
 Output: bacteria_viruses.fasta.gz (gzip enabled)
 Included taxids: 2 (Bacteria), 10239 (Viruses)
@@ -366,7 +366,7 @@ Testing is paramount. Every module must have thorough unit tests. Accuracy and f
 These are end-to-end tests that invoke the CLI on fixture files and verify output.
 
 - **Basic filter**: A small FASTA with entries from bacteria (taxid 2 descendants), archaea, and eukaryotes. Filter with `-t 2`, verify output contains only bacterial entries.
-- **Multiple taxids**: Filter with `-t 2 10239`, verify output contains bacteria and viruses but nothing else.
+- **Multiple taxids**: Filter with `-t 2 -t 10239`, verify output contains bacteria and viruses but nothing else.
 - **Exclude**: Filter with `-t 2759 -e 40674`, verify eukaryotes are included but mammals are excluded.
 - **Merged taxid handling**: A FASTA entry annotated with an old (merged) taxonomy ID that maps into the included subtree. Verify it is included.
 - **Gzip input**: Same test as basic filter but with gzip-compressed input. Verify identical output.
@@ -512,7 +512,7 @@ docker run --rm -v /data:/data ghcr.io/<org>/taxafasta:1.2.3 \
 
 # Use the latest release
 docker run --rm -v /data:/data ghcr.io/<org>/taxafasta:latest \
-  -i /data/uniprot_trembl.fasta.gz -t 2 10239 -o /data/bacteria_viruses.fasta
+  -i /data/uniprot_trembl.fasta.gz -t 2 -t 10239 -o /data/bacteria_viruses.fasta
 ```
 
 ---
@@ -700,7 +700,7 @@ A more comprehensive set of examples showing common use cases:
 taxafasta -i uniprot_trembl.fasta.gz -t 2 -o bacteria.fasta
 
 ### Filter to multiple groups (bacteria + viruses)
-taxafasta -i uniprot_trembl.fasta.gz -t 2 10239 -o bacteria_viruses.fasta
+taxafasta -i uniprot_trembl.fasta.gz -t 2 -t 10239 -o bacteria_viruses.fasta
 
 ### Exclude a subtree (eukaryotes minus mammals)
 taxafasta -i uniprot_trembl.fasta.gz -t 2759 -e 40674 -o euk_no_mammals.fasta

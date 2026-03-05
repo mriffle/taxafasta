@@ -104,6 +104,7 @@ def test_multiple_taxids(
                 str(data_dir / "sample.fasta"),
                 "-t",
                 "2",
+                "-t",
                 "10239",
                 "-o",
                 str(out),
@@ -149,6 +150,47 @@ def test_exclude_subtree(
     # Our sample has OX=9606 (human, mammal) — should be excluded
     # No other eukaryote entries in sample that aren't mammals
     assert "OX=9606" not in output
+
+
+def test_exclude_multiple_subtrees(
+    tmp_path: Path,
+    data_dir: Path,
+    tiny_taxdump_dir: Path,
+) -> None:
+    """Include bacteria (2), exclude two sub-branches (335928 and 1706371).
+
+    Only the 32199 branch (containing taxid 9) should remain from bacteria.
+    Merged taxid 50->7 should also be excluded since 7 is under 335928.
+    Merged taxid 51->9 should still be included since 9 is under 32199.
+    """
+    out = tmp_path / "bact_partial.fasta"
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "-i",
+                str(data_dir / "sample.fasta"),
+                "-t",
+                "2",
+                "-e",
+                "335928",
+                "-e",
+                "1706371",
+                "-o",
+                str(out),
+                "-d",
+                str(tiny_taxdump_dir),
+                "--no-gzip",
+            ]
+        )
+    output = _read_output(out)
+    # OX=9 (under 32199) should be included
+    assert "OX=9" in output
+    # OX=7 (under 335928, excluded) should NOT be included
+    assert "OX=7" not in output
+    # OX=11 (under 1706371, excluded) should NOT be included
+    assert "OX=11" not in output
+    # OX=50 (merged->7, which is under excluded 335928) should NOT be included
+    assert "OX=50" not in output
 
 
 # --- Merged taxid handling ---

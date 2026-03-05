@@ -65,7 +65,7 @@ taxafasta -i uniprot_trembl.fasta.gz -t 2 -o bacteria.fasta
 ### Filter to multiple groups (bacteria + viruses)
 
 ```bash
-taxafasta -i uniprot_trembl.fasta.gz -t 2 10239 -o bacteria_viruses.fasta
+taxafasta -i uniprot_trembl.fasta.gz -t 2 -t 10239 -o bacteria_viruses.fasta
 ```
 
 ### Exclude a subtree (eukaryotes minus mammals)
