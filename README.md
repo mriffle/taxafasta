@@ -97,6 +97,12 @@ taxafasta -i uniprot_trembl.fasta.gz -t 9606 -o human.fasta --no-gzip
 taxafasta -i uniprot_trembl.fasta.gz -t 2 -o bacteria.fasta -v
 ```
 
+### Filter multiple local files (TrEMBL + Swiss-Prot)
+
+```bash
+taxafasta -i uniprot_trembl.fasta.gz -i uniprot_sprot.fasta.gz -t 2 -o bacteria.fasta
+```
+
 ### Stream from UniProt directly (no local FASTA needed)
 
 ```bash

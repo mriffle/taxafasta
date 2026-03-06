@@ -39,7 +39,8 @@ def test_parser_missing_output() -> None:
 def test_parser_basic() -> None:
     parser = build_parser()
     args = parser.parse_args(["-i", "in.fasta", "-t", "2", "-o", "out.fasta"])
-    assert str(args.input) == "in.fasta"
+    assert len(args.input) == 1
+    assert str(args.input[0]) == "in.fasta"
     assert args.taxid == [2]
     assert str(args.output) == "out.fasta"
     assert args.no_gzip is False
@@ -68,6 +69,16 @@ def test_parser_multiple_excludes() -> None:
         ["-i", "in.fasta", "-t", "1", "-e", "40674", "-e", "10239", "-o", "out.fasta"],
     )
     assert args.exclude == [40674, 10239]
+
+
+def test_parser_multiple_inputs() -> None:
+    parser = build_parser()
+    args = parser.parse_args(
+        ["-i", "trembl.fasta.gz", "-i", "sprot.fasta.gz", "-t", "2", "-o", "out.fasta"],
+    )
+    assert len(args.input) == 2
+    assert str(args.input[0]) == "trembl.fasta.gz"
+    assert str(args.input[1]) == "sprot.fasta.gz"
 
 
 def test_parser_no_gzip() -> None:

@@ -30,12 +30,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--input",
         "-i",
+        action="append",
         type=Path,
         default=None,
         help=(
             "Path to input UniProt FASTA file (plain or gzipped)."
-            " If omitted, TrEMBL and Swiss-Prot are streamed"
-            " from UniProt."
+            " Repeat for multiple files, e.g. -i trembl.fasta.gz"
+            " -i swissprot.fasta.gz. If omitted, TrEMBL and"
+            " Swiss-Prot are streamed from UniProt."
         ),
     )
     parser.add_argument(
@@ -136,25 +138,27 @@ def main(argv: list[str] | None = None) -> None:
     else:
         command_line = "taxafasta " + " ".join(argv)
 
-    # Determine input mode: local file vs. streaming download
-    streaming_mode = args.input is None
+    # Determine input mode: local file(s) vs. streaming download
+    input_paths: list[Path] | None = args.input  # None or list[Path]
+    streaming_mode = input_paths is None
     input_label: str
 
     if not streaming_mode:
-        input_path: Path = args.input
-        if not input_path.exists():
-            print(
-                f"Error: Input file does not exist: {input_path}",
-                file=sys.stderr,
-            )
-            raise SystemExit(1)
-        if not input_path.is_file():
-            print(
-                f"Error: Input path is not a file: {input_path}",
-                file=sys.stderr,
-            )
-            raise SystemExit(1)
-        input_label = str(input_path)
+        assert input_paths is not None
+        for input_path in input_paths:
+            if not input_path.exists():
+                print(
+                    f"Error: Input file does not exist: {input_path}",
+                    file=sys.stderr,
+                )
+                raise SystemExit(1)
+            if not input_path.is_file():
+                print(
+                    f"Error: Input path is not a file: {input_path}",
+                    file=sys.stderr,
+                )
+                raise SystemExit(1)
+        input_label = ", ".join(str(p) for p in input_paths)
     else:
         # Validate streaming flags
         if args.no_trembl and args.no_swissprot:
@@ -200,8 +204,7 @@ def main(argv: list[str] | None = None) -> None:
     all_known: set[int] = set(parent_of.keys()) | set(merged_to.keys())
 
     # Open input stream(s)
-    in_stream: ChainedTextStream | None = None
-    in_file_stream = None
+    in_stream: ChainedTextStream
     if streaming_mode:
         streams = []
         if not args.no_trembl:
@@ -220,14 +223,20 @@ def main(argv: list[str] | None = None) -> None:
             )
         in_stream = ChainedTextStream(streams)
     else:
+        assert input_paths is not None
+        file_streams = []
         try:
-            in_file_stream = open_input(input_path)
+            for p in input_paths:
+                file_streams.append(open_input(p))
         except OSError as exc:
+            for s in file_streams:
+                s.close()
             print(
                 f"Error opening input file: {exc}",
                 file=sys.stderr,
             )
             raise SystemExit(1) from exc
+        in_stream = ChainedTextStream(file_streams)
 
     try:
         out_stream, resolved_output = open_output(
@@ -243,12 +252,10 @@ def main(argv: list[str] | None = None) -> None:
 
     # Filter
     print("Filtering FASTA...", file=sys.stderr)
-    actual_input = in_stream if in_stream is not None else in_file_stream
-    assert actual_input is not None
     start = time.monotonic()
     try:
         stats = filter_fasta(
-            actual_input,
+            in_stream,
             out_stream,
             allowed_taxids,
             all_known,
@@ -256,10 +263,7 @@ def main(argv: list[str] | None = None) -> None:
         )
     finally:
         out_stream.close()
-        if in_stream is not None:
-            in_stream.close()
-        if in_file_stream is not None:
-            in_file_stream.close()
+        in_stream.close()
     elapsed = time.monotonic() - start
 
     # Write log file

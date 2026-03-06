@@ -740,6 +740,49 @@ def test_exit_code_missing_input(
     assert exc_info.value.code == 1
 
 
+# --- Multiple local input files ---
+
+
+def test_multiple_input_files(
+    tmp_path: Path,
+    data_dir: Path,
+    tiny_taxdump_dir: Path,
+) -> None:
+    """Multiple -i flags should concatenate local FASTA files."""
+    # Create a second FASTA with an extra bacterial entry
+    second = tmp_path / "extra.fasta"
+    second.write_text(
+        ">tr|EXTRA1|EXTRA_BACT Extra bacterial OS=Extra OX=7 PE=1 SV=1\nACGTACGTACGT\n"
+    )
+
+    out = tmp_path / "multi.fasta"
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "-i",
+                str(data_dir / "sample.fasta"),
+                "-i",
+                str(second),
+                "-t",
+                "2",
+                "-o",
+                str(out),
+                "-d",
+                str(tiny_taxdump_dir),
+                "--no-gzip",
+            ]
+        )
+    # Exit code 2 expected (warnings from sample.fasta)
+    assert exc_info.value.code in (0, 2)
+    output = _read_output(out)
+    # Should have entries from both files
+    assert "OX=7" in output
+    assert "EXTRA_BACT" in output
+    # Count bacterial entries: 4 from sample.fasta + 1 from extra.fasta
+    entries = _count_entries(output)
+    assert entries >= 4
+
+
 # --- Streaming mode (mocked) ---
 
 

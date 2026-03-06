@@ -102,7 +102,7 @@ The tool should use Python's `argparse` (or `click`) for CLI parsing. The comman
 
 | Argument | Short | Required | Description |
 |---|---|---|---|
-| `--input` | `-i` | No | Path to input UniProt FASTA file (plain or gzipped). If omitted, TrEMBL and Swiss-Prot are streamed directly from UniProt and filtered on the fly without saving to disk. |
+| `--input` | `-i` | No | Path to input UniProt FASTA file (plain or gzipped). Repeat for multiple files (e.g., `-i trembl.fasta.gz -i swissprot.fasta.gz`). If omitted, TrEMBL and Swiss-Prot are streamed directly from UniProt and filtered on the fly without saving to disk. |
 | `--taxid` | `-t` | Yes | NCBI taxonomy ID to include. All descendants are automatically included. Repeat for multiple IDs (e.g., `-t 2 -t 10239`). |
 | `--output` | `-o` | Yes | Path to output FASTA file. Output is gzip-compressed by default (see `--no-gzip`). If path does not end in `.gz`, the suffix `.gz` is appended automatically unless `--no-gzip` is set. |
 | `--no-gzip` | | No | Disable gzip compression of output. Write uncompressed FASTA. |
@@ -136,6 +136,9 @@ taxafasta -i uniprot_trembl.fasta.gz -t 2759 -e 40674 -o euk_no_mammals.fasta
 
 # Verbose progress reporting
 taxafasta -i uniprot_trembl.fasta.gz -t 2 -o bacteria.fasta -v
+
+# Filter multiple local files (TrEMBL + Swiss-Prot)
+taxafasta -i uniprot_trembl.fasta.gz -i uniprot_sprot.fasta.gz -t 2 -o bacteria.fasta
 
 # Stream from UniProt directly (no local FASTA needed)
 taxafasta -t 2 -o bacteria.fasta
@@ -731,6 +734,9 @@ taxafasta -i uniprot_trembl.fasta.gz -t 9606 -o human.fasta --no-gzip
 
 ### Verbose progress
 taxafasta -i uniprot_trembl.fasta.gz -t 2 -o bacteria.fasta -v
+
+### Filter multiple local files (TrEMBL + Swiss-Prot)
+taxafasta -i uniprot_trembl.fasta.gz -i uniprot_sprot.fasta.gz -t 2 -o bacteria.fasta
 
 ### Stream from UniProt directly (no local FASTA needed)
 taxafasta -t 2 -o bacteria.fasta
