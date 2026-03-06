@@ -10,6 +10,7 @@ build/
 *.egg-info/
 *.egg
 src/*.egg-info/
+src/taxafasta/_version.py
 
 # Virtual environments
 .venv/

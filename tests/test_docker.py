@@ -37,6 +37,8 @@ def docker_image() -> str:
         [
             "docker",
             "build",
+            "--build-arg",
+            "VERSION=0.0.0",
             "--target",
             "runtime",
             "-t",

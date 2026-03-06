@@ -5,11 +5,14 @@ ARG PYTHON_VERSION=3.12
 # ---- Build stage ----
 FROM python:${PYTHON_VERSION}-slim AS build
 
+ARG VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION}
+
 WORKDIR /app
 COPY pyproject.toml README.md LICENSE ./
 COPY src/ src/
 
-RUN pip install --no-cache-dir build && \
+RUN pip install --no-cache-dir build hatch-vcs && \
     python -m build --wheel --outdir /app/dist
 
 # ---- Test stage (used in CI, not shipped) ----
