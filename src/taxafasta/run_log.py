@@ -38,7 +38,7 @@ def write_log(
     log_path: Path,
     *,
     command_line: str,
-    input_path: Path,
+    input_path: str | Path,
     output_path: Path,
     include_taxids: list[int],
     exclude_taxids: list[int] | None,

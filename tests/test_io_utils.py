@@ -3,9 +3,16 @@
 from __future__ import annotations
 
 import gzip
+import io
 from pathlib import Path
 
-from taxafasta.io_utils import has_isal, is_gzip_file, open_input, open_output
+from taxafasta.io_utils import (
+    ChainedTextStream,
+    has_isal,
+    is_gzip_file,
+    open_input,
+    open_output,
+)
 
 # --- Gzip detection ---
 
@@ -100,3 +107,36 @@ def test_open_output_no_gzip(tmp_path: Path) -> None:
 def test_has_isal_returns_bool() -> None:
     """has_isal() should return a bool regardless of installation status."""
     assert isinstance(has_isal(), bool)
+
+
+# --- ChainedTextStream ---
+
+
+def test_chained_text_stream_basic() -> None:
+    s1 = io.StringIO("line1\nline2\n")
+    s2 = io.StringIO("line3\nline4\n")
+    chained = ChainedTextStream([s1, s2])
+    lines = list(chained)
+    assert lines == ["line1\n", "line2\n", "line3\n", "line4\n"]
+
+
+def test_chained_text_stream_empty() -> None:
+    chained = ChainedTextStream([])
+    assert list(chained) == []
+
+
+def test_chained_text_stream_single() -> None:
+    s = io.StringIO(">header\nACGT\n")
+    chained = ChainedTextStream([s])
+    lines = list(chained)
+    assert len(lines) == 2
+    assert lines[0] == ">header\n"
+
+
+def test_chained_text_stream_close() -> None:
+    s1 = io.StringIO("a\n")
+    s2 = io.StringIO("b\n")
+    chained = ChainedTextStream([s1, s2])
+    chained.close()
+    assert s1.closed
+    assert s2.closed

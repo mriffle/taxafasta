@@ -38,6 +38,9 @@ packages = ["src/taxafasta"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "smoke: smoke tests that require network access (deselect with '-m \"not smoke\"')",
+]
 
 [tool.mypy]
 strict = true

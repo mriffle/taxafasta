@@ -1,16 +1,29 @@
-"""Taxonomy download and caching logic (§6)."""
+"""Taxonomy and UniProt FASTA download and caching logic (§6)."""
 
 from __future__ import annotations
 
+import gzip
 import io
 import sys
 import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import IO, Any
 from urllib.error import URLError
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 TAXDUMP_URL = "https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz"
+
+UNIPROT_TREMBL_URL = (
+    "https://ftp.uniprot.org/pub/databases/uniprot/"
+    "current_release/knowledgebase/complete/"
+    "uniprot_trembl.fasta.gz"
+)
+UNIPROT_SWISSPROT_URL = (
+    "https://ftp.uniprot.org/pub/databases/uniprot/"
+    "current_release/knowledgebase/complete/"
+    "uniprot_sprot.fasta.gz"
+)
 _REQUIRED_FILES = ("nodes.dmp", "merged.dmp")
 _OPTIONAL_FILES = ("names.dmp", "delnodes.dmp")
 _TIMESTAMP_FILE = ".taxafasta_download_timestamp"
@@ -131,3 +144,61 @@ def ensure_taxdump(
         return taxdump_dir
 
     return download_taxdump(cache_dir)
+
+
+def open_uniprot_stream(
+    url: str,
+    *,
+    label: str = "UniProt FASTA",
+) -> IO[str]:
+    """Open a streaming, gzip-decompressed text stream from a URL.
+
+    The FASTA data is decompressed on the fly and never saved to disk.
+
+    Parameters
+    ----------
+    url : HTTPS URL to a gzipped FASTA file.
+    label : human-readable name for error messages.
+
+    Returns
+    -------
+    A text-mode readable stream of decompressed FASTA data.
+    """
+    print(
+        f"Streaming {label} from {url} ...",
+        file=sys.stderr,
+    )
+    raw_bytes: Any
+    try:
+        try:
+            import requests
+
+            resp = requests.get(
+                url,
+                stream=True,
+                timeout=120,
+            )
+            resp.raise_for_status()
+            raw_bytes = resp.raw
+            # Ensure urllib3 does not auto-decode
+            raw_bytes.decode_content = False
+        except ImportError:
+            req = Request(url)  # noqa: S310
+            raw_bytes = urlopen(  # noqa: S310
+                req,
+                timeout=120,
+            )
+    except (URLError, OSError) as exc:
+        print(
+            f"Error downloading {label}: {exc}",
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from exc
+
+    # Wrap in gzip decompressor then text decoder
+    decompressed: IO[bytes] = gzip.open(raw_bytes, mode="rb")
+    return io.TextIOWrapper(
+        decompressed,
+        encoding="utf-8",
+        errors="replace",
+    )

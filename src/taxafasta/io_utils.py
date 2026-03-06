@@ -5,6 +5,7 @@ from __future__ import annotations
 import gzip
 import io
 import types
+from collections.abc import Iterator
 from pathlib import Path
 from typing import IO
 
@@ -101,3 +102,25 @@ def open_output(
         newline="",
     )
     return stream, path
+
+
+class ChainedTextStream:
+    """Concatenate multiple text streams into a single iterable.
+
+    Iterating yields all lines from each stream in order.
+    Calling ``close()`` closes every underlying stream.
+    """
+
+    def __init__(self, streams: list[IO[str]]) -> None:
+        self._streams = streams
+
+    def __iter__(self) -> Iterator[str]:
+        for stream in self._streams:
+            yield from stream
+
+    def close(self) -> None:
+        for stream in self._streams:
+            try:
+                stream.close()
+            except Exception:  # noqa: BLE001
+                pass

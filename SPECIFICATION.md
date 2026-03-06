@@ -102,7 +102,7 @@ The tool should use Python's `argparse` (or `click`) for CLI parsing. The comman
 
 | Argument | Short | Required | Description |
 |---|---|---|---|
-| `--input` | `-i` | Yes | Path to input UniProt FASTA file (plain or gzipped) |
+| `--input` | `-i` | No | Path to input UniProt FASTA file (plain or gzipped). If omitted, TrEMBL and Swiss-Prot are streamed directly from UniProt and filtered on the fly without saving to disk. |
 | `--taxid` | `-t` | Yes | NCBI taxonomy ID to include. All descendants are automatically included. Repeat for multiple IDs (e.g., `-t 2 -t 10239`). |
 | `--output` | `-o` | Yes | Path to output FASTA file. Output is gzip-compressed by default (see `--no-gzip`). If path does not end in `.gz`, the suffix `.gz` is appended automatically unless `--no-gzip` is set. |
 | `--no-gzip` | | No | Disable gzip compression of output. Write uncompressed FASTA. |
@@ -110,6 +110,8 @@ The tool should use Python's `argparse` (or `click`) for CLI parsing. The comman
 | `--cache-dir` | | No | Directory for caching downloaded taxonomy files. Defaults to `~/.taxafasta/`. |
 | `--exclude` | `-e` | No | NCBI taxonomy ID to exclude (with descendants), applied after inclusion. Repeat for multiple IDs (e.g., `-e 40674 -e 10239`). |
 | `--no-merge` | | No | Flag to disable merged taxonomy ID resolution. |
+| `--no-trembl` | | No | Skip TrEMBL when downloading from UniProt. Only used when `--input` is omitted. |
+| `--no-swissprot` | | No | Skip Swiss-Prot when downloading from UniProt. Only used when `--input` is omitted. |
 | `--verbose` | `-v` | No | Periodic progress updates to stderr (see §5.3 Progress Reporting). |
 | `--version` | | No | Print version and exit. |
 
@@ -134,6 +136,15 @@ taxafasta -i uniprot_trembl.fasta.gz -t 2759 -e 40674 -o euk_no_mammals.fasta
 
 # Verbose progress reporting
 taxafasta -i uniprot_trembl.fasta.gz -t 2 -o bacteria.fasta -v
+
+# Stream from UniProt directly (no local FASTA needed)
+taxafasta -t 2 -o bacteria.fasta
+
+# Stream only Swiss-Prot (skip TrEMBL)
+taxafasta -t 9606 -o human.fasta --no-trembl
+
+# Stream only TrEMBL (skip Swiss-Prot)
+taxafasta -t 2 -o bacteria_trembl.fasta --no-swissprot
 ```
 
 ### 5.3 Progress Reporting
@@ -378,8 +389,15 @@ These are end-to-end tests that invoke the CLI on fixture files and verify outpu
 - **Unparseable header warning**: A FASTA with an entry missing `OX=`. Verify stderr shows the warning once with the full header, the entry is excluded, and the log records the count.
 - **No matches**: Verify behavior when no entries match the filter (empty output, exit code 0, log reflects this).
 - **All match**: Verify behavior when every entry matches.
+- **Streaming mode (mocked)**: Omit `--input`, mock `open_uniprot_stream`, verify both TrEMBL and Swiss-Prot streams are opened and output is correctly filtered.
+- **Streaming mode --no-swissprot**: Verify only TrEMBL is streamed when `--no-swissprot` is set.
+- **Streaming mode --no-trembl --no-swissprot**: Verify exit code 1 when both are skipped.
 
-### 12.8 Accuracy Tests
+### 12.8 Smoke Tests (`test_smoke.py`)
+
+Network-dependent tests marked with `@pytest.mark.smoke` (not included in the default test suite). These download the first few entries from the real UniProt TrEMBL and Swiss-Prot endpoints and verify valid FASTA headers are returned.
+
+### 12.9 Accuracy Tests
 
 A dedicated set of tests using carefully constructed fixture data that exercises every branch of the algorithm:
 
@@ -713,6 +731,15 @@ taxafasta -i uniprot_trembl.fasta.gz -t 9606 -o human.fasta --no-gzip
 
 ### Verbose progress
 taxafasta -i uniprot_trembl.fasta.gz -t 2 -o bacteria.fasta -v
+
+### Stream from UniProt directly (no local FASTA needed)
+taxafasta -t 2 -o bacteria.fasta
+
+### Stream only Swiss-Prot (skip TrEMBL)
+taxafasta -t 9606 -o human.fasta --no-trembl
+
+### Stream only TrEMBL (skip Swiss-Prot)
+taxafasta -t 2 -o bacteria_trembl.fasta --no-swissprot
 ```
 
 ### 16.7 Docker Usage

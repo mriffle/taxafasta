@@ -7,13 +7,15 @@ Filter UniProt protein FASTA files by NCBI taxonomy.
 
 ## Overview
 
-`taxafasta` filters large UniProt FASTA files (Swiss-Prot and/or TrEMBL) to include only proteins from specified NCBI taxonomy subtrees. It is designed for files at the scale of full UniProt TrEMBL (250M+ entries, hundreds of GB). The tool uses the NCBI taxonomy hierarchy to automatically include all descendants of specified taxonomy IDs and handles merged/deprecated taxonomy IDs transparently.
+`taxafasta` filters large UniProt FASTA files (Swiss-Prot and/or TrEMBL) to include only proteins from specified NCBI taxonomy subtrees. It can work with local FASTA files or stream directly from UniProt — filtering on the fly without ever saving the full database to disk. It is designed for files at the scale of full UniProt TrEMBL (250M+ entries, hundreds of GB). The tool uses the NCBI taxonomy hierarchy to automatically include all descendants of specified taxonomy IDs and handles merged/deprecated taxonomy IDs transparently.
 
 ## How It Works
 
 The tool parses NCBI taxonomy dump files (`nodes.dmp`, `merged.dmp`) to build a parent→child tree in memory. From user-supplied taxonomy IDs, it pre-computes a flat set of all allowed taxonomy IDs (the specified IDs plus all their descendants), reducing per-entry filtering to an O(1) set-membership check.
 
 The FASTA file is streamed line-by-line and never loaded into memory. Each entry's `OX=` field is extracted and checked against the pre-computed set. Matching entries are written to the (gzip-compressed by default) output. A log file is generated for every run recording parameters, taxonomy version, warnings, and summary statistics.
+
+When `--input` is omitted, TrEMBL and Swiss-Prot are streamed directly from UniProt's FTP server, decompressed on the fly, and filtered without saving the full databases to disk.
 
 ## Requirements
 
@@ -46,7 +48,10 @@ docker pull ghcr.io/mriffle/taxafasta:latest
 ## Quick Start
 
 ```bash
-# Download NCBI taxonomy (automatic on first run, or provide manually)
+# Stream from UniProt directly (no local FASTA needed)
+taxafasta -t 2 -o bacteria.fasta
+
+# Or filter a local file
 taxafasta -i uniprot_trembl.fasta.gz -t 2 -o bacteria.fasta
 
 # This produces:
@@ -90,6 +95,24 @@ taxafasta -i uniprot_trembl.fasta.gz -t 9606 -o human.fasta --no-gzip
 
 ```bash
 taxafasta -i uniprot_trembl.fasta.gz -t 2 -o bacteria.fasta -v
+```
+
+### Stream from UniProt directly (no local FASTA needed)
+
+```bash
+taxafasta -t 2 -o bacteria.fasta
+```
+
+### Stream only Swiss-Prot (skip TrEMBL)
+
+```bash
+taxafasta -t 9606 -o human.fasta --no-trembl
+```
+
+### Stream only TrEMBL (skip Swiss-Prot)
+
+```bash
+taxafasta -t 2 -o bacteria_trembl.fasta --no-swissprot
 ```
 
 ## Docker Usage
@@ -138,6 +161,9 @@ pytest
 
 # Run with coverage
 pytest --cov=taxafasta
+
+# Run smoke tests (requires network)
+pytest -m smoke
 
 # Lint and format
 ruff check src/ tests/

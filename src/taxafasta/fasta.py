@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import sys
 import time
+from collections.abc import Iterable
 from typing import IO
 
 # Compiled regex for OX= field extraction (§4.2 step 2a)
@@ -70,7 +71,7 @@ class FilterStats:
 
 
 def filter_fasta(
-    input_stream: IO[str],
+    input_stream: IO[str] | Iterable[str],
     output_stream: IO[str],
     allowed_taxids: set[int],
     all_known_taxids: set[int],
@@ -82,7 +83,7 @@ def filter_fasta(
 
     Parameters
     ----------
-    input_stream : text-mode readable stream of FASTA data
+    input_stream : text-mode readable stream or iterable of FASTA lines
     output_stream : text-mode writable stream for filtered output
     allowed_taxids : pre-computed set of taxonomy IDs that pass the filter
     all_known_taxids : full set of taxonomy IDs in nodes.dmp + merged.dmp

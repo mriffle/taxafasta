@@ -738,3 +738,119 @@ def test_exit_code_missing_input(
             ]
         )
     assert exc_info.value.code == 1
+
+
+# --- Streaming mode (mocked) ---
+
+
+def test_streaming_mode_no_input(
+    tmp_path: Path,
+    data_dir: Path,
+    tiny_taxdump_dir: Path,
+) -> None:
+    """When --input is omitted, open_uniprot_stream is called.
+
+    We mock it to return our sample FASTA data.
+    """
+    from unittest.mock import patch
+
+    from taxafasta.io_utils import open_input
+
+    sample = data_dir / "sample.fasta"
+    call_count = {"n": 0}
+
+    def _fake_stream(
+        url: str,
+        *,
+        label: str = "",
+    ):  # type: ignore[no-untyped-def]
+        call_count["n"] += 1
+        return open_input(sample)
+
+    out = tmp_path / "streamed.fasta"
+    with patch(
+        "taxafasta.cli.open_uniprot_stream",
+        side_effect=_fake_stream,
+    ):
+        with pytest.raises(SystemExit):
+            main(
+                [
+                    "-t",
+                    "2",
+                    "-o",
+                    str(out),
+                    "-d",
+                    str(tiny_taxdump_dir),
+                    "--no-gzip",
+                ]
+            )
+    # Should have called open_uniprot_stream twice
+    # (TrEMBL + Swiss-Prot)
+    assert call_count["n"] == 2
+    output = _read_output(out)
+    assert "OX=7" in output
+
+
+def test_streaming_mode_no_swissprot(
+    tmp_path: Path,
+    data_dir: Path,
+    tiny_taxdump_dir: Path,
+) -> None:
+    """--no-swissprot should only stream TrEMBL."""
+    from unittest.mock import patch
+
+    from taxafasta.io_utils import open_input
+
+    sample = data_dir / "sample.fasta"
+    call_labels: list[str] = []
+
+    def _fake_stream(
+        url: str,
+        *,
+        label: str = "",
+    ):  # type: ignore[no-untyped-def]
+        call_labels.append(label)
+        return open_input(sample)
+
+    out = tmp_path / "trembl_only.fasta"
+    with patch(
+        "taxafasta.cli.open_uniprot_stream",
+        side_effect=_fake_stream,
+    ):
+        with pytest.raises(SystemExit):
+            main(
+                [
+                    "-t",
+                    "2",
+                    "-o",
+                    str(out),
+                    "-d",
+                    str(tiny_taxdump_dir),
+                    "--no-gzip",
+                    "--no-swissprot",
+                ]
+            )
+    assert len(call_labels) == 1
+    assert "TrEMBL" in call_labels[0]
+
+
+def test_streaming_mode_both_skipped_error(
+    tmp_path: Path,
+    tiny_taxdump_dir: Path,
+) -> None:
+    """--no-trembl --no-swissprot together should fail."""
+    out = tmp_path / "err.fasta"
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "-t",
+                "2",
+                "-o",
+                str(out),
+                "-d",
+                str(tiny_taxdump_dir),
+                "--no-trembl",
+                "--no-swissprot",
+            ]
+        )
+    assert exc_info.value.code == 1

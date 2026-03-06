@@ -8,9 +8,15 @@ import time
 from pathlib import Path
 
 from taxafasta import __version__
-from taxafasta.download import ensure_taxdump, read_timestamp
+from taxafasta.download import (
+    UNIPROT_SWISSPROT_URL,
+    UNIPROT_TREMBL_URL,
+    ensure_taxdump,
+    open_uniprot_stream,
+    read_timestamp,
+)
 from taxafasta.fasta import filter_fasta
-from taxafasta.io_utils import open_input, open_output
+from taxafasta.io_utils import ChainedTextStream, open_input, open_output
 from taxafasta.run_log import resolve_log_path, write_log
 from taxafasta.taxonomy import build_allowed_set
 
@@ -24,9 +30,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--input",
         "-i",
-        required=True,
         type=Path,
-        help="Path to input UniProt FASTA file (plain or gzipped).",
+        default=None,
+        help=(
+            "Path to input UniProt FASTA file (plain or gzipped)."
+            " If omitted, TrEMBL and Swiss-Prot are streamed"
+            " from UniProt."
+        ),
     )
     parser.add_argument(
         "--taxid",
@@ -83,6 +93,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Disable merged taxonomy ID resolution.",
     )
     parser.add_argument(
+        "--no-trembl",
+        action="store_true",
+        default=False,
+        help=(
+            "Skip TrEMBL when downloading from UniProt."
+            " Only used when --input is omitted."
+        ),
+    )
+    parser.add_argument(
+        "--no-swissprot",
+        action="store_true",
+        default=False,
+        help=(
+            "Skip Swiss-Prot when downloading from UniProt."
+            " Only used when --input is omitted."
+        ),
+    )
+    parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
@@ -108,14 +136,39 @@ def main(argv: list[str] | None = None) -> None:
     else:
         command_line = "taxafasta " + " ".join(argv)
 
-    # Validate input file
-    input_path: Path = args.input
-    if not input_path.exists():
-        print(f"Error: Input file does not exist: {input_path}", file=sys.stderr)
-        raise SystemExit(1)
-    if not input_path.is_file():
-        print(f"Error: Input path is not a file: {input_path}", file=sys.stderr)
-        raise SystemExit(1)
+    # Determine input mode: local file vs. streaming download
+    streaming_mode = args.input is None
+    input_label: str
+
+    if not streaming_mode:
+        input_path: Path = args.input
+        if not input_path.exists():
+            print(
+                f"Error: Input file does not exist: {input_path}",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+        if not input_path.is_file():
+            print(
+                f"Error: Input path is not a file: {input_path}",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+        input_label = str(input_path)
+    else:
+        # Validate streaming flags
+        if args.no_trembl and args.no_swissprot:
+            print(
+                "Error: Cannot specify both --no-trembl and --no-swissprot.",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+        parts: list[str] = []
+        if not args.no_trembl:
+            parts.append("TrEMBL")
+        if not args.no_swissprot:
+            parts.append("Swiss-Prot")
+        input_label = "UniProt " + " + ".join(parts) + " (streamed)"
 
     use_gzip = not args.no_gzip
     use_merged = not args.no_merge
@@ -138,30 +191,64 @@ def main(argv: list[str] | None = None) -> None:
         args.exclude,
         use_merged=use_merged,
     )
-    print(f"Allowed taxid set size: {len(allowed_taxids):,}", file=sys.stderr)
+    print(
+        f"Allowed taxid set size: {len(allowed_taxids):,}",
+        file=sys.stderr,
+    )
 
     # Build set of all known taxids for unknown-taxid detection
     all_known: set[int] = set(parent_of.keys()) | set(merged_to.keys())
 
-    # Open I/O streams
-    try:
-        in_stream = open_input(input_path)
-    except OSError as exc:
-        print(f"Error opening input file: {exc}", file=sys.stderr)
-        raise SystemExit(1) from exc
+    # Open input stream(s)
+    in_stream: ChainedTextStream | None = None
+    in_file_stream = None
+    if streaming_mode:
+        streams = []
+        if not args.no_trembl:
+            streams.append(
+                open_uniprot_stream(
+                    UNIPROT_TREMBL_URL,
+                    label="UniProt TrEMBL",
+                )
+            )
+        if not args.no_swissprot:
+            streams.append(
+                open_uniprot_stream(
+                    UNIPROT_SWISSPROT_URL,
+                    label="UniProt Swiss-Prot",
+                )
+            )
+        in_stream = ChainedTextStream(streams)
+    else:
+        try:
+            in_file_stream = open_input(input_path)
+        except OSError as exc:
+            print(
+                f"Error opening input file: {exc}",
+                file=sys.stderr,
+            )
+            raise SystemExit(1) from exc
 
     try:
-        out_stream, resolved_output = open_output(args.output, use_gzip=use_gzip)
+        out_stream, resolved_output = open_output(
+            args.output,
+            use_gzip=use_gzip,
+        )
     except OSError as exc:
-        print(f"Error opening output file: {exc}", file=sys.stderr)
+        print(
+            f"Error opening output file: {exc}",
+            file=sys.stderr,
+        )
         raise SystemExit(1) from exc
 
     # Filter
     print("Filtering FASTA...", file=sys.stderr)
+    actual_input = in_stream if in_stream is not None else in_file_stream
+    assert actual_input is not None
     start = time.monotonic()
     try:
         stats = filter_fasta(
-            in_stream,
+            actual_input,
             out_stream,
             allowed_taxids,
             all_known,
@@ -169,7 +256,10 @@ def main(argv: list[str] | None = None) -> None:
         )
     finally:
         out_stream.close()
-        in_stream.close()
+        if in_stream is not None:
+            in_stream.close()
+        if in_file_stream is not None:
+            in_file_stream.close()
     elapsed = time.monotonic() - start
 
     # Write log file
@@ -177,7 +267,7 @@ def main(argv: list[str] | None = None) -> None:
     write_log(
         log_path,
         command_line=command_line,
-        input_path=input_path,
+        input_path=input_label,
         output_path=resolved_output,
         include_taxids=args.taxid,
         exclude_taxids=args.exclude,

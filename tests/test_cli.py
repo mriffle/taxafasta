@@ -16,10 +16,12 @@ def test_parser_required_args() -> None:
         parser.parse_args([])  # no args
 
 
-def test_parser_missing_input() -> None:
+def test_parser_no_input_is_valid() -> None:
+    """--input is optional; omitting it triggers streaming mode."""
     parser = build_parser()
-    with pytest.raises(SystemExit):
-        parser.parse_args(["-t", "2", "-o", "out.fasta"])
+    args = parser.parse_args(["-t", "2", "-o", "out.fasta"])
+    assert args.input is None
+    assert args.taxid == [2]
 
 
 def test_parser_missing_taxid() -> None:
@@ -88,6 +90,24 @@ def test_parser_verbose() -> None:
     parser = build_parser()
     args = parser.parse_args(["-i", "in.fasta", "-t", "2", "-o", "out.fasta", "-v"])
     assert args.verbose is True
+
+
+def test_parser_no_trembl() -> None:
+    parser = build_parser()
+    args = parser.parse_args(
+        ["-t", "2", "-o", "out.fasta", "--no-trembl"],
+    )
+    assert args.no_trembl is True
+    assert args.no_swissprot is False
+
+
+def test_parser_no_swissprot() -> None:
+    parser = build_parser()
+    args = parser.parse_args(
+        ["-t", "2", "-o", "out.fasta", "--no-swissprot"],
+    )
+    assert args.no_swissprot is True
+    assert args.no_trembl is False
 
 
 # --- Version ---
