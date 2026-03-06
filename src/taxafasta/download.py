@@ -6,6 +6,7 @@ import gzip
 import io
 import sys
 import tarfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import IO, Any
@@ -146,19 +147,147 @@ def ensure_taxdump(
     return download_taxdump(cache_dir)
 
 
+_MAX_RETRIES = 5
+_INITIAL_BACKOFF = 5.0
+_BACKOFF_FACTOR = 2.0
+_CONNECT_TIMEOUT = 120
+_READ_CHUNK = 65536
+
+
+def _open_raw_stream(
+    url: str,
+    byte_offset: int = 0,
+) -> Any:
+    """Open a raw byte stream from *url*, optionally resuming at *byte_offset*."""
+    try:
+        import requests
+
+        headers = {}
+        if byte_offset > 0:
+            headers["Range"] = f"bytes={byte_offset}-"
+        resp = requests.get(
+            url,
+            stream=True,
+            timeout=_CONNECT_TIMEOUT,
+            headers=headers,
+        )
+        resp.raise_for_status()
+        raw = resp.raw
+        raw.decode_content = False
+        return raw
+    except ImportError:
+        pass
+
+    req = Request(url)  # noqa: S310
+    if byte_offset > 0:
+        req.add_header("Range", f"bytes={byte_offset}-")
+    return urlopen(req, timeout=_CONNECT_TIMEOUT)  # noqa: S310
+
+
+class ResilientByteStream(io.RawIOBase):
+    """A byte stream that transparently reconnects on transient errors.
+
+    Tracks the number of compressed bytes consumed and, on failure,
+    reopens the HTTP connection with a ``Range`` header so the gzip
+    decompressor above it sees an uninterrupted stream.
+    """
+
+    def __init__(
+        self,
+        url: str,
+        *,
+        label: str = "",
+        max_retries: int = _MAX_RETRIES,
+        initial_backoff: float = _INITIAL_BACKOFF,
+    ) -> None:
+        super().__init__()
+        self._url = url
+        self._label = label
+        self._max_retries = max_retries
+        self._initial_backoff = initial_backoff
+        self._bytes_read = 0
+        self._inner: Any = _open_raw_stream(url)
+
+    # -- io.RawIOBase interface --
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, b: bytearray | memoryview) -> int:  # type: ignore[override]
+        """Read up to len(b) bytes into *b*, retrying on network errors."""
+        backoff = self._initial_backoff
+        for attempt in range(self._max_retries + 1):
+            try:
+                if hasattr(self._inner, "readinto"):
+                    n = self._inner.readinto(b)
+                else:
+                    n = self._inner_read_into(b)
+                if n is None:
+                    n = 0
+                self._bytes_read += int(n)
+                return int(n)
+            except (OSError, URLError) as exc:
+                if attempt >= self._max_retries:
+                    raise
+                print(
+                    f"\nNetwork error on {self._label} at byte "
+                    f"{self._bytes_read:,}: {exc}\n"
+                    f"Retrying in {backoff:.0f}s "
+                    f"(attempt {attempt + 2}/{self._max_retries + 1})...",
+                    file=sys.stderr,
+                )
+                time.sleep(backoff)
+                backoff *= _BACKOFF_FACTOR
+                self._reconnect()
+        return 0  # unreachable, satisfies mypy
+
+    def _inner_read_into(self, b: bytearray | memoryview) -> int:
+        """Fallback when the inner stream lacks readinto."""
+        data = self._inner.read(len(b))
+        if not data:
+            return 0
+        n = len(data)
+        b[:n] = data
+        return n
+
+    def _reconnect(self) -> None:
+        """Close the current connection and reopen with a Range header."""
+        try:
+            self._inner.close()
+        except Exception:  # noqa: BLE001
+            pass
+        self._inner = _open_raw_stream(self._url, self._bytes_read)
+        print(
+            f"Resumed {self._label} from byte {self._bytes_read:,}",
+            file=sys.stderr,
+        )
+
+    def close(self) -> None:
+        try:
+            self._inner.close()
+        except Exception:  # noqa: BLE001
+            pass
+        super().close()
+
+
 def open_uniprot_stream(
     url: str,
     *,
     label: str = "UniProt FASTA",
+    max_retries: int = _MAX_RETRIES,
 ) -> IO[str]:
     """Open a streaming, gzip-decompressed text stream from a URL.
 
     The FASTA data is decompressed on the fly and never saved to disk.
+    On transient network errors the connection is automatically retried
+    with HTTP Range headers so the decompressor sees an uninterrupted
+    byte stream.
 
     Parameters
     ----------
     url : HTTPS URL to a gzipped FASTA file.
     label : human-readable name for error messages.
+    max_retries : maximum reconnection attempts before giving up.
 
     Returns
     -------
@@ -168,26 +297,12 @@ def open_uniprot_stream(
         f"Streaming {label} from {url} ...",
         file=sys.stderr,
     )
-    raw_bytes: Any
     try:
-        try:
-            import requests
-
-            resp = requests.get(
-                url,
-                stream=True,
-                timeout=120,
-            )
-            resp.raise_for_status()
-            raw_bytes = resp.raw
-            # Ensure urllib3 does not auto-decode
-            raw_bytes.decode_content = False
-        except ImportError:
-            req = Request(url)  # noqa: S310
-            raw_bytes = urlopen(  # noqa: S310
-                req,
-                timeout=120,
-            )
+        raw = ResilientByteStream(
+            url,
+            label=label,
+            max_retries=max_retries,
+        )
     except (URLError, OSError) as exc:
         print(
             f"Error downloading {label}: {exc}",
@@ -195,8 +310,8 @@ def open_uniprot_stream(
         )
         raise SystemExit(1) from exc
 
-    # Wrap in gzip decompressor then text decoder
-    decompressed: IO[bytes] = gzip.open(raw_bytes, mode="rb")
+    buffered = io.BufferedReader(raw, buffer_size=_READ_CHUNK)
+    decompressed = gzip.open(buffered, mode="rb")
     return io.TextIOWrapper(
         decompressed,
         encoding="utf-8",

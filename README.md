@@ -121,6 +121,11 @@ taxafasta -t 9606 -o human.fasta --no-trembl
 taxafasta -t 2 -o bacteria_trembl.fasta --no-swissprot
 ```
 
+> **Network resilience:** When streaming, transient network errors (broken pipes,
+> connection resets) are automatically retried up to 5 times with exponential
+> backoff. The download resumes from the exact byte offset via HTTP `Range`
+> headers, so no data is lost or reprocessed.
+
 ## Docker Usage
 
 ```bash
