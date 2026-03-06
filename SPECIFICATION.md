@@ -264,6 +264,7 @@ Given the scale of UniProt TrEMBL (250M+ entries, hundreds of GB uncompressed):
 - **Taxonomy loading**: The entire `nodes.dmp` and `merged.dmp` parse and descendant-set construction should complete in under 30 seconds on commodity hardware.
 - **FASTA streaming throughput**: The tool should be I/O-bound, not CPU-bound. With `isal`-accelerated gzip decompression, throughput should approach the raw disk/network read speed. A target of 200+ MB/s of uncompressed data processed is reasonable.
 - **Memory usage**: The taxonomy data structures and the allowed-set together should consume under 1 GB of RAM. The FASTA stream itself adds negligible memory overhead (single line buffer).
+- **Network resilience**: When streaming from UniProt, transient network errors (broken pipes, connection resets) are automatically retried up to 5 times with exponential backoff (5 s, 10 s, 20 s, 40 s, 80 s). The connection is resumed at the exact compressed-byte offset using HTTP `Range` headers so the gzip decompressor sees an uninterrupted stream.
 
 ---
 
