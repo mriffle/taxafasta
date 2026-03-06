@@ -17,6 +17,11 @@ The FASTA file is streamed line-by-line and never loaded into memory. Each entry
 
 When `--input` is omitted, TrEMBL and Swiss-Prot are streamed directly from UniProt's FTP server, decompressed on the fly, and filtered without saving the full databases to disk.
 
+> **Network resilience:** When streaming, transient network errors (broken pipes,
+> connection resets) are automatically retried up to 5 times with exponential
+> backoff. The download resumes from the exact byte offset via HTTP `Range`
+> headers, so no data is lost or reprocessed.
+
 ## Requirements
 
 - **Python 3.10 or newer** (Or Docker)
@@ -120,11 +125,6 @@ taxafasta -t 9606 -o human.fasta --no-trembl
 ```bash
 taxafasta -t 2 -o bacteria_trembl.fasta --no-swissprot
 ```
-
-> **Network resilience:** When streaming, transient network errors (broken pipes,
-> connection resets) are automatically retried up to 5 times with exponential
-> backoff. The download resumes from the exact byte offset via HTTP `Range`
-> headers, so no data is lost or reprocessed.
 
 ## Docker Usage
 
